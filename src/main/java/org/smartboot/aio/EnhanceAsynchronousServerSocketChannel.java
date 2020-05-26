@@ -14,6 +14,7 @@ import java.nio.channels.ServerSocketChannel;
 import java.nio.channels.SocketChannel;
 import java.util.Set;
 import java.util.concurrent.Future;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * @author 三刀
@@ -27,6 +28,7 @@ class EnhanceAsynchronousServerSocketChannel extends AsynchronousServerSocketCha
     private SelectionKey selectionKey;
     private SocketChannel waitFinishChannel;
     private boolean acceptPending;
+    private AtomicInteger invoker = new AtomicInteger(0);
 
     /**
      * Initializes a new instance of this class.
@@ -82,6 +84,11 @@ class EnhanceAsynchronousServerSocketChannel extends AsynchronousServerSocketCha
 
     public void doAccept() {
         try {
+            if (invoker.getAndIncrement() > 16) {
+                invoker.set(0);
+                enhanceAsynchronousChannelGroup.interestOps(selectionKey, SelectionKey.OP_ACCEPT);
+                return;
+            }
             SocketChannel socketChannel = serverSocketChannel.accept();
             if (socketChannel != null) {
                 EnhanceAsynchronousSocketChannel asynchronousSocketChannel = new EnhanceAsynchronousSocketChannel(enhanceAsynchronousChannelGroup, socketChannel);
@@ -95,6 +102,7 @@ class EnhanceAsynchronousServerSocketChannel extends AsynchronousServerSocketCha
             }
             //首次注册selector
             else if (selectionKey == null) {
+                invoker.set(0);
                 enhanceAsynchronousChannelGroup.getAcceptWorker().addRegister(new WorkerRegister() {
                     @Override
                     public void callback(Selector selector) {
@@ -107,6 +115,7 @@ class EnhanceAsynchronousServerSocketChannel extends AsynchronousServerSocketCha
                     }
                 });
             } else {
+                invoker.set(0);
                 enhanceAsynchronousChannelGroup.interestOps(selectionKey, SelectionKey.OP_ACCEPT);
             }
         } catch (IOException e) {
