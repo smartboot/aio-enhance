@@ -28,7 +28,7 @@ class EnhanceAsynchronousChannelGroup extends AsynchronousChannelGroup {
     private Worker[] acceptWorkers = null;
     private Worker[] writeWorkers = null;
     private Worker[] readWorkers = null;
-    private int index;
+    private AtomicInteger index = new AtomicInteger(0);
     private boolean running = true;
 
     /**
@@ -122,10 +122,11 @@ class EnhanceAsynchronousChannelGroup extends AsynchronousChannelGroup {
      * @return
      */
     private int index(int arrayLength) {
-        if (index < 0) {
-            index = 0;
+        int i = index.getAndIncrement() % arrayLength;
+        if (i < 0) {
+            i = -i;
         }
-        return index++ % arrayLength;
+        return i;
     }
 
     @Override
@@ -184,10 +185,10 @@ class EnhanceAsynchronousChannelGroup extends AsynchronousChannelGroup {
 
         @Override
         public void run() {
-            while (running) {
-                try {
-                    // 优先获取SelectionKey,若无关注事件触发则阻塞在selector.select(),减少select被调用次数
-                    Set<SelectionKey> keySet = selector.selectedKeys();
+            // 优先获取SelectionKey,若无关注事件触发则阻塞在selector.select(),减少select被调用次数
+            Set<SelectionKey> keySet = selector.selectedKeys();
+            try {
+                while (running) {
                     if (keySet.isEmpty()) {
                         selector.select();
                     }
@@ -223,16 +224,14 @@ class EnhanceAsynchronousChannelGroup extends AsynchronousChannelGroup {
                             } else {
                                 System.out.println("奇怪了...");
                             }
-                        } catch (Exception e) {
-                            e.printStackTrace();
                         } finally {
                             // 移除已处理的事件
                             keyIterator.remove();
                         }
                     }
-                } catch (Exception e) {
-                    e.printStackTrace();
                 }
+            } catch (Exception e) {
+                e.printStackTrace();
             }
         }
 
