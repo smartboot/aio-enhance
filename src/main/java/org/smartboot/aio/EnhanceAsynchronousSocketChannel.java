@@ -217,14 +217,11 @@ class EnhanceAsynchronousSocketChannel extends AsynchronousSocketChannel {
 
     public void doRead() {
         try {
-            if (readInvoker.getAndIncrement() > 16) {
-                readInvoker.set(0);
-                group.interestOps(readSelectionKey, SelectionKey.OP_READ);
-                return;
-            }
+            boolean directRead = readInvoker.getAndIncrement() < 16;
+
             int totalSize = 0;
             int readSize = 0;
-            while (readBuffer.hasRemaining()) {
+            while (directRead && readBuffer.hasRemaining()) {
                 readSize = channel.read(readBuffer);
                 if (readSize <= 0) {
                     if (totalSize == 0) {
@@ -264,14 +261,10 @@ class EnhanceAsynchronousSocketChannel extends AsynchronousSocketChannel {
 
     public void doWrite() {
         try {
-            if (writeInvoker.getAndIncrement() > 16) {
-                writeInvoker.set(0);
-                group.interestOps(writeSelectionKey, SelectionKey.OP_WRITE);
-                return;
-            }
+            boolean directWrite = writeInvoker.getAndIncrement() < 16;
             int totalSize = 0;
             int writeSize = 0;
-            while (writeBuffer.hasRemaining()) {
+            while (directWrite && writeBuffer.hasRemaining()) {
                 writeSize = channel.write(writeBuffer);
                 if (writeSize <= 0) {
                     if (totalSize == 0) {
@@ -285,9 +278,6 @@ class EnhanceAsynchronousSocketChannel extends AsynchronousSocketChannel {
             if (totalSize > 0 || !writeBuffer.hasRemaining()) {
                 writePending = false;
                 writeCompletionHandler.completed(totalSize, writeAttachment);
-                if (!writePending && writeSelectionKey != null) {
-                    group.removeOps(writeSelectionKey, SelectionKey.OP_WRITE);
-                }
             } else {
                 writeInvoker.set(0);
                 if (writeSelectionKey == null) {
