@@ -49,7 +49,8 @@ class EnhanceAsynchronousSocketChannel extends AsynchronousSocketChannel {
     private boolean readPending;
     private boolean connectionPending;
     private SocketAddress remote;
-    private AtomicInteger invoker = new AtomicInteger(0);
+    private AtomicInteger readInvoker = new AtomicInteger(0);
+    private AtomicInteger writeInvoker = new AtomicInteger(0);
     private EnhanceAsynchronousChannelGroup group;
 
     public EnhanceAsynchronousSocketChannel(EnhanceAsynchronousChannelGroup group, SocketChannel channel) throws IOException {
@@ -216,8 +217,8 @@ class EnhanceAsynchronousSocketChannel extends AsynchronousSocketChannel {
 
     public void doRead() {
         try {
-            if (invoker.getAndIncrement() > 16) {
-                invoker.set(0);
+            if (readInvoker.getAndIncrement() > 16) {
+                readInvoker.set(0);
                 group.interestOps(readSelectionKey, SelectionKey.OP_READ);
                 return;
             }
@@ -240,7 +241,7 @@ class EnhanceAsynchronousSocketChannel extends AsynchronousSocketChannel {
                     group.removeOps(readSelectionKey, SelectionKey.OP_READ);
                 }
             } else if (readSelectionKey == null) {
-                invoker.set(0);
+                readInvoker.set(0);
                 group.getReadWorker().addRegister(new WorkerRegister() {
                     @Override
                     public void callback(Selector selector) {
@@ -253,7 +254,7 @@ class EnhanceAsynchronousSocketChannel extends AsynchronousSocketChannel {
                     }
                 });
             } else {
-                invoker.set(0);
+                readInvoker.set(0);
                 group.interestOps(readSelectionKey, SelectionKey.OP_READ);
             }
         } catch (IOException e) {
@@ -263,6 +264,11 @@ class EnhanceAsynchronousSocketChannel extends AsynchronousSocketChannel {
 
     public void doWrite() {
         try {
+            if (writeInvoker.getAndIncrement() > 16) {
+                writeInvoker.set(0);
+                group.interestOps(writeSelectionKey, SelectionKey.OP_WRITE);
+                return;
+            }
             int totalSize = 0;
             int writeSize = 0;
             while (writeBuffer.hasRemaining()) {
@@ -283,6 +289,7 @@ class EnhanceAsynchronousSocketChannel extends AsynchronousSocketChannel {
                     group.removeOps(writeSelectionKey, SelectionKey.OP_WRITE);
                 }
             } else {
+                writeInvoker.set(0);
                 if (writeSelectionKey == null) {
                     group.getWriteWorker().addRegister(new WorkerRegister() {
                         @Override
