@@ -23,12 +23,13 @@ import java.util.concurrent.atomic.AtomicInteger;
 class EnhanceAsynchronousServerSocketChannel extends AsynchronousServerSocketChannel {
     private final ServerSocketChannel serverSocketChannel;
     private final EnhanceAsynchronousChannelGroup enhanceAsynchronousChannelGroup;
+    private final AtomicInteger invoker = new AtomicInteger(0);
     private CompletionHandler<AsynchronousSocketChannel, Object> acceptCompletionHandler;
+    private FutureCompletionHandler<AsynchronousSocketChannel, Void> acceptFutureCompletionHandler;
     private Object attachment;
     private SelectionKey selectionKey;
     private SocketChannel waitFinishChannel;
     private boolean acceptPending;
-    private AtomicInteger invoker = new AtomicInteger(0);
 
     /**
      * Initializes a new instance of this class.
@@ -38,6 +39,7 @@ class EnhanceAsynchronousServerSocketChannel extends AsynchronousServerSocketCha
         this.enhanceAsynchronousChannelGroup = enhanceAsynchronousChannelGroup;
         serverSocketChannel = ServerSocketChannel.open();
         serverSocketChannel.configureBlocking(false);
+        System.out.println("enhance...");
     }
 
     @Override
@@ -84,6 +86,12 @@ class EnhanceAsynchronousServerSocketChannel extends AsynchronousServerSocketCha
 
     public void doAccept() {
         try {
+            //此前通过Future调用,且触发了cancel
+            if (acceptFutureCompletionHandler != null && acceptFutureCompletionHandler.isCancelled()) {
+                acceptPending = false;
+                acceptFutureCompletionHandler = null;
+                return;
+            }
             if (invoker.getAndIncrement() > EnhanceAsynchronousChannelGroup.MAX_INVOKER) {
                 invoker.set(0);
                 enhanceAsynchronousChannelGroup.interestOps(selectionKey, SelectionKey.OP_ACCEPT);
@@ -130,7 +138,10 @@ class EnhanceAsynchronousServerSocketChannel extends AsynchronousServerSocketCha
 
     @Override
     public Future<AsynchronousSocketChannel> accept() {
-        throw new UnsupportedOperationException();
+        FutureCompletionHandler<AsynchronousSocketChannel, Void> acceptFuture = new FutureCompletionHandler<>();
+        accept(null, acceptFuture);
+        acceptFutureCompletionHandler = acceptFuture;
+        return acceptFuture;
     }
 
     @Override

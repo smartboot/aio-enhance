@@ -35,11 +35,19 @@ import java.util.concurrent.atomic.AtomicInteger;
  */
 class EnhanceAsynchronousSocketChannel extends AsynchronousSocketChannel {
     private final SocketChannel channel;
+    private final AtomicInteger readInvoker = new AtomicInteger(0);
+    private final AtomicInteger writeInvoker = new AtomicInteger(0);
+    private final EnhanceAsynchronousChannelGroup group;
     private ByteBuffer readBuffer;
+    private Scattering readScattering;
     private ByteBuffer writeBuffer;
-    private CompletionHandler<Integer, Object> readCompletionHandler;
-    private CompletionHandler<Integer, Object> writeCompletionHandler;
+    private Scattering writeScattering;
+    private CompletionHandler<Number, Object> readCompletionHandler;
+    private CompletionHandler<Number, Object> writeCompletionHandler;
     private CompletionHandler<Void, Object> connectCompletionHandler;
+    private FutureCompletionHandler<Void, Void> connectFuture;
+    private FutureCompletionHandler<Number, Object> readFuture;
+    private FutureCompletionHandler<Number, Object> writeFuture;
     private Object readAttachment;
     private Object writeAttachment;
     private Object connectAttachment;
@@ -49,9 +57,6 @@ class EnhanceAsynchronousSocketChannel extends AsynchronousSocketChannel {
     private boolean readPending;
     private boolean connectionPending;
     private SocketAddress remote;
-    private AtomicInteger readInvoker = new AtomicInteger(0);
-    private AtomicInteger writeInvoker = new AtomicInteger(0);
-    private EnhanceAsynchronousChannelGroup group;
 
     public EnhanceAsynchronousSocketChannel(EnhanceAsynchronousChannelGroup group, SocketChannel channel) throws IOException {
         super(group.provider());
@@ -80,13 +85,13 @@ class EnhanceAsynchronousSocketChannel extends AsynchronousSocketChannel {
     }
 
     @Override
-    public java.nio.channels.AsynchronousSocketChannel bind(SocketAddress local) throws IOException {
+    public AsynchronousSocketChannel bind(SocketAddress local) throws IOException {
         channel.bind(local);
         return this;
     }
 
     @Override
-    public <T> java.nio.channels.AsynchronousSocketChannel setOption(SocketOption<T> name, T value) throws IOException {
+    public <T> AsynchronousSocketChannel setOption(SocketOption<T> name, T value) throws IOException {
         channel.setOption(name, value);
         return this;
     }
@@ -102,13 +107,13 @@ class EnhanceAsynchronousSocketChannel extends AsynchronousSocketChannel {
     }
 
     @Override
-    public java.nio.channels.AsynchronousSocketChannel shutdownInput() throws IOException {
+    public AsynchronousSocketChannel shutdownInput() throws IOException {
         channel.shutdownInput();
         return this;
     }
 
     @Override
-    public java.nio.channels.AsynchronousSocketChannel shutdownOutput() throws IOException {
+    public AsynchronousSocketChannel shutdownOutput() throws IOException {
         channel.shutdownOutput();
         return this;
     }
@@ -132,51 +137,80 @@ class EnhanceAsynchronousSocketChannel extends AsynchronousSocketChannel {
 
     @Override
     public Future<Void> connect(SocketAddress remote) {
-        throw new UnsupportedOperationException();
+        FutureCompletionHandler<Void, Void> connectFuture = new FutureCompletionHandler<>();
+        connect(remote, null, connectFuture);
+        this.connectFuture = connectFuture;
+        return connectFuture;
     }
 
     @Override
     public <A> void read(ByteBuffer dst, long timeout, TimeUnit unit, A attachment, CompletionHandler<Integer, ? super A> handler) {
+        this.readBuffer = dst;
+        read0(timeout, unit, attachment, handler);
+    }
+
+    private <V extends Number, A> void read0(long timeout, TimeUnit unit, A attachment, CompletionHandler<V, ? super A> handler) {
         if (readPending) {
             throw new ReadPendingException();
         }
         readPending = true;
-        this.readBuffer = dst;
         this.readAttachment = attachment;
-        this.readCompletionHandler = (CompletionHandler<Integer, Object>) handler;
+        if (timeout > 0) {
+            readFuture = new FutureCompletionHandler<>(readCompletionHandler, readAttachment);
+            readCompletionHandler = readFuture;
+            group.getScheduledExecutor().schedule(readFuture, timeout, unit);
+        } else {
+            this.readCompletionHandler = (CompletionHandler<Number, Object>) handler;
+        }
         doRead();
     }
 
     @Override
     public Future<Integer> read(ByteBuffer readBuffer) {
-        throw new UnsupportedOperationException();
+        FutureCompletionHandler<Integer, Void> readFuture = new FutureCompletionHandler<>();
+        read(readBuffer, 0, TimeUnit.MILLISECONDS, null, readFuture);
+        return readFuture;
     }
 
     @Override
     public <A> void read(ByteBuffer[] dsts, int offset, int length, long timeout, TimeUnit unit, A attachment, CompletionHandler<Long, ? super A> handler) {
-        throw new UnsupportedOperationException();
+        readScattering = new Scattering(dsts, offset, length);
+        read0(timeout, unit, attachment, handler);
     }
 
     @Override
     public <A> void write(ByteBuffer src, long timeout, TimeUnit unit, A attachment, CompletionHandler<Integer, ? super A> handler) {
+        this.writeBuffer = src;
+        write0(timeout, unit, attachment, handler);
+    }
+
+    public <V extends Number, A> void write0(long timeout, TimeUnit unit, A attachment, CompletionHandler<V, ? super A> handler) {
         if (writePending) {
             throw new WritePendingException();
         }
         writePending = true;
-        this.writeBuffer = src;
+
         this.writeAttachment = attachment;
-        this.writeCompletionHandler = (CompletionHandler<Integer, Object>) handler;
+        this.writeCompletionHandler = (CompletionHandler<Number, Object>) handler;
+        if (timeout > 0) {
+            writeFuture = new FutureCompletionHandler<>(writeCompletionHandler, writeAttachment);
+            writeCompletionHandler = writeFuture;
+            group.getScheduledExecutor().schedule(writeFuture, timeout, unit);
+        }
         doWrite();
     }
 
     @Override
     public Future<Integer> write(ByteBuffer src) {
-        throw new UnsupportedOperationException();
+        FutureCompletionHandler<Integer, Void> futureCompletionHandler = new FutureCompletionHandler<>();
+        write(src, 0, TimeUnit.MILLISECONDS, null, futureCompletionHandler);
+        return futureCompletionHandler;
     }
 
     @Override
     public <A> void write(ByteBuffer[] srcs, int offset, int length, long timeout, TimeUnit unit, A attachment, CompletionHandler<Long, ? super A> handler) {
-        throw new UnsupportedOperationException();
+        writeScattering = new Scattering(srcs, offset, length);
+        write0(timeout, unit, attachment, handler);
     }
 
     @Override
@@ -186,6 +220,13 @@ class EnhanceAsynchronousSocketChannel extends AsynchronousSocketChannel {
 
     public void doConnect() {
         try {
+            //此前通过Future调用,且触发了cancel
+            if (connectFuture != null && connectFuture.isCancelled()) {
+                connectionPending = false;
+                connectFuture = null;
+                return;
+            }
+
             if (channel.connect(remote)) {
                 channel.finishConnect();
                 connectionPending = false;
@@ -217,12 +258,23 @@ class EnhanceAsynchronousSocketChannel extends AsynchronousSocketChannel {
 
     public void doRead() {
         try {
+            //此前通过Future调用,且触发了cancel
+            if (readFuture != null && readFuture.isCancelled()) {
+                readPending = false;
+                readFuture = null;
+                return;
+            }
+
             boolean directRead = readInvoker.getAndIncrement() < EnhanceAsynchronousChannelGroup.MAX_INVOKER;
 
-            int totalSize = 0;
-            int readSize = 0;
+            long totalSize = 0;
+            long readSize;
             while (directRead && readBuffer.hasRemaining()) {
-                readSize = channel.read(readBuffer);
+                if (readScattering != null) {
+                    readSize = channel.read(readScattering.getBuffers(), readScattering.getOffset(), readScattering.getLength());
+                } else {
+                    readSize = channel.read(readBuffer);
+                }
                 if (readSize <= 0) {
                     if (totalSize == 0) {
                         totalSize = readSize;
@@ -261,11 +313,21 @@ class EnhanceAsynchronousSocketChannel extends AsynchronousSocketChannel {
 
     public void doWrite() {
         try {
+            //此前通过Future调用,且触发了cancel
+            if (writeFuture != null && writeFuture.isCancelled()) {
+                writePending = false;
+                writeFuture = null;
+                return;
+            }
             boolean directWrite = writeInvoker.getAndIncrement() < EnhanceAsynchronousChannelGroup.MAX_INVOKER;
-            int totalSize = 0;
-            int writeSize = 0;
+            long totalSize = 0;
+            long writeSize;
             while (directWrite && writeBuffer.hasRemaining()) {
-                writeSize = channel.write(writeBuffer);
+                if (writeScattering != null) {
+                    writeSize = channel.write(writeScattering.getBuffers(), writeScattering.getOffset(), writeScattering.getLength());
+                } else {
+                    writeSize = channel.write(writeBuffer);
+                }
                 if (writeSize <= 0) {
                     if (totalSize == 0) {
                         totalSize = writeSize;

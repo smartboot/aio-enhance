@@ -10,6 +10,7 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
@@ -26,6 +27,7 @@ class EnhanceAsynchronousChannelGroup extends AsynchronousChannelGroup {
     private final ExecutorService readExecutorService;
     private final ExecutorService writeExecutorService;
     private ExecutorService acceptExecutorService;
+    private ScheduledThreadPoolExecutor scheduledExecutor;
     private Worker[] acceptWorkers = null;
     private Worker[] writeWorkers = null;
     private Worker[] readWorkers = null;
@@ -72,6 +74,13 @@ class EnhanceAsynchronousChannelGroup extends AsynchronousChannelGroup {
                 acceptExecutorService.execute(acceptWorkers[i]);
             }
         }
+
+        scheduledExecutor = new ScheduledThreadPoolExecutor(1, new ThreadFactory() {
+            @Override
+            public Thread newThread(Runnable r) {
+                return new Thread(r, "smart-socket:scheduled");
+            }
+        });
     }
 
     private ThreadPoolExecutor getThreadPoolExecutor(final String prefix, int threadNum) {
@@ -128,6 +137,10 @@ class EnhanceAsynchronousChannelGroup extends AsynchronousChannelGroup {
 
     public Worker getAcceptWorker() {
         return acceptWorkers[index(acceptWorkers.length)];
+    }
+
+    public ScheduledThreadPoolExecutor getScheduledExecutor() {
+        return scheduledExecutor;
     }
 
     /**
