@@ -259,7 +259,7 @@ class EnhanceAsynchronousSocketChannel extends AsynchronousSocketChannel {
         try {
             int totalSize = 0;
             int writeSize = 0;
-            while (true) {
+            while (writeBuffer.hasRemaining()) {
                 writeSize = channel.write(writeBuffer);
                 if (writeSize <= 0) {
                     if (totalSize == 0) {
@@ -270,7 +270,7 @@ class EnhanceAsynchronousSocketChannel extends AsynchronousSocketChannel {
                 totalSize += writeSize;
             }
 
-            if (totalSize > 0) {
+            if (totalSize > 0 || !writeBuffer.hasRemaining()) {
                 writePending = false;
                 writeCompletionHandler.completed(totalSize, writeAttachment);
             } else {
