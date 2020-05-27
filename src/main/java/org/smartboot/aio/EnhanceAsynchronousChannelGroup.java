@@ -49,7 +49,7 @@ class EnhanceAsynchronousChannelGroup extends AsynchronousChannelGroup {
         //init threadPool for write and connect
         final int writeThreadNum = getIntSystemProperty(WRITE_THREAD_NUM, Runtime.getRuntime().availableProcessors() > 1 ? Runtime.getRuntime().availableProcessors() >> 1 : 1);
         final int acceptThreadNum = getIntSystemProperty(ACCEPT_THREAD_NUM, 1);
-        writeExecutorService = getThreadPoolExecutor("smartboot:write-", writeThreadNum);
+        writeExecutorService = getThreadPoolExecutor("smart-socket:write-", writeThreadNum);
         this.writeWorkers = new Worker[writeThreadNum];
         int validSelectionKey = SelectionKey.OP_WRITE | SelectionKey.OP_CONNECT;
         //accept 复用 write线程组
@@ -64,7 +64,7 @@ class EnhanceAsynchronousChannelGroup extends AsynchronousChannelGroup {
 
         //init threadPool for accept
         if (acceptThreadNum > 0) {
-            acceptExecutorService = getThreadPoolExecutor("smartboot:accept-", acceptThreadNum);
+            acceptExecutorService = getThreadPoolExecutor("smart-socket:accept-", acceptThreadNum);
             acceptWorkers = new Worker[acceptThreadNum];
             for (int i = 0; i < acceptThreadNum; i++) {
                 acceptWorkers[i] = new Worker(Selector.open(), SelectionKey.OP_ACCEPT);
