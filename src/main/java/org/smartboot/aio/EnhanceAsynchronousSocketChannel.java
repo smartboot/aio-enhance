@@ -145,15 +145,16 @@ class EnhanceAsynchronousSocketChannel extends AsynchronousSocketChannel {
 
     @Override
     public <A> void read(ByteBuffer dst, long timeout, TimeUnit unit, A attachment, CompletionHandler<Integer, ? super A> handler) {
-        this.readBuffer = dst;
-        read0(timeout, unit, attachment, handler);
+        read0(dst, null, timeout, unit, attachment, handler);
     }
 
-    private <V extends Number, A> void read0(long timeout, TimeUnit unit, A attachment, CompletionHandler<V, ? super A> handler) {
+    private <V extends Number, A> void read0(ByteBuffer readBuffer, Scattering scattering, long timeout, TimeUnit unit, A attachment, CompletionHandler<V, ? super A> handler) {
         if (readPending) {
             throw new ReadPendingException();
         }
         readPending = true;
+        this.readBuffer = readBuffer;
+        this.readScattering = scattering;
         this.readAttachment = attachment;
         if (timeout > 0) {
             readFuture = new FutureCompletionHandler<>(readCompletionHandler, readAttachment);
@@ -174,22 +175,21 @@ class EnhanceAsynchronousSocketChannel extends AsynchronousSocketChannel {
 
     @Override
     public <A> void read(ByteBuffer[] dsts, int offset, int length, long timeout, TimeUnit unit, A attachment, CompletionHandler<Long, ? super A> handler) {
-        readScattering = new Scattering(dsts, offset, length);
-        read0(timeout, unit, attachment, handler);
+        read0(null, new Scattering(dsts, offset, length), timeout, unit, attachment, handler);
     }
 
     @Override
     public <A> void write(ByteBuffer src, long timeout, TimeUnit unit, A attachment, CompletionHandler<Integer, ? super A> handler) {
-        this.writeBuffer = src;
-        write0(timeout, unit, attachment, handler);
+        write0(src, null, timeout, unit, attachment, handler);
     }
 
-    public <V extends Number, A> void write0(long timeout, TimeUnit unit, A attachment, CompletionHandler<V, ? super A> handler) {
+    public <V extends Number, A> void write0(ByteBuffer writeBuffer, Scattering scattering, long timeout, TimeUnit unit, A attachment, CompletionHandler<V, ? super A> handler) {
         if (writePending) {
             throw new WritePendingException();
         }
         writePending = true;
-
+        this.writeBuffer = writeBuffer;
+        this.writeScattering = scattering;
         this.writeAttachment = attachment;
         this.writeCompletionHandler = (CompletionHandler<Number, Object>) handler;
         if (timeout > 0) {
@@ -209,8 +209,7 @@ class EnhanceAsynchronousSocketChannel extends AsynchronousSocketChannel {
 
     @Override
     public <A> void write(ByteBuffer[] srcs, int offset, int length, long timeout, TimeUnit unit, A attachment, CompletionHandler<Long, ? super A> handler) {
-        writeScattering = new Scattering(srcs, offset, length);
-        write0(timeout, unit, attachment, handler);
+        write0(null, new Scattering(srcs, offset, length), timeout, unit, attachment, handler);
     }
 
     @Override
@@ -285,7 +284,7 @@ class EnhanceAsynchronousSocketChannel extends AsynchronousSocketChannel {
             }
             if (totalSize != 0 || !readBuffer.hasRemaining()) {
                 readPending = false;
-                readCompletionHandler.completed(totalSize, readAttachment);
+                readCompletionHandler.completed(readScattering == null ? (int) totalSize : totalSize, readAttachment);
                 if (!readPending && readSelectionKey != null) {
                     group.removeOps(readSelectionKey, SelectionKey.OP_READ);
                 }
@@ -339,7 +338,7 @@ class EnhanceAsynchronousSocketChannel extends AsynchronousSocketChannel {
 
             if (totalSize > 0 || !writeBuffer.hasRemaining()) {
                 writePending = false;
-                writeCompletionHandler.completed(totalSize, writeAttachment);
+                writeCompletionHandler.completed(writeScattering == null ? (int) totalSize : totalSize, writeAttachment);
             } else {
                 writeInvoker.set(0);
                 if (writeSelectionKey == null) {
