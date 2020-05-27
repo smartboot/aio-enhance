@@ -84,7 +84,7 @@ class EnhanceAsynchronousServerSocketChannel extends AsynchronousServerSocketCha
 
     public void doAccept() {
         try {
-            if (invoker.getAndIncrement() > 16) {
+            if (invoker.getAndIncrement() > EnhanceAsynchronousChannelGroup.MAX_INVOKER) {
                 invoker.set(0);
                 enhanceAsynchronousChannelGroup.interestOps(selectionKey, SelectionKey.OP_ACCEPT);
                 return;
@@ -94,6 +94,7 @@ class EnhanceAsynchronousServerSocketChannel extends AsynchronousServerSocketCha
                 EnhanceAsynchronousSocketChannel asynchronousSocketChannel = new EnhanceAsynchronousSocketChannel(enhanceAsynchronousChannelGroup, socketChannel);
                 acceptPending = false;
                 waitFinishChannel = socketChannel;
+                asynchronousSocketChannel.getReadInvoker().set(EnhanceAsynchronousChannelGroup.MAX_INVOKER - 1);
                 acceptCompletionHandler.completed(asynchronousSocketChannel, attachment);
                 if (waitFinishChannel != null) {
                     socketChannel.finishConnect();

@@ -217,7 +217,7 @@ class EnhanceAsynchronousSocketChannel extends AsynchronousSocketChannel {
 
     public void doRead() {
         try {
-            boolean directRead = readInvoker.getAndIncrement() < 16;
+            boolean directRead = readInvoker.getAndIncrement() < EnhanceAsynchronousChannelGroup.MAX_INVOKER;
 
             int totalSize = 0;
             int readSize = 0;
@@ -261,7 +261,7 @@ class EnhanceAsynchronousSocketChannel extends AsynchronousSocketChannel {
 
     public void doWrite() {
         try {
-            boolean directWrite = writeInvoker.getAndIncrement() < 16;
+            boolean directWrite = writeInvoker.getAndIncrement() < EnhanceAsynchronousChannelGroup.MAX_INVOKER;
             int totalSize = 0;
             int writeSize = 0;
             while (directWrite && writeBuffer.hasRemaining()) {
@@ -306,4 +306,7 @@ class EnhanceAsynchronousSocketChannel extends AsynchronousSocketChannel {
         return channel.isOpen();
     }
 
+    public AtomicInteger getReadInvoker() {
+        return readInvoker;
+    }
 }
