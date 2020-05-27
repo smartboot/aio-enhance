@@ -190,6 +190,9 @@ class EnhanceAsynchronousSocketChannel extends AsynchronousSocketChannel {
                 connectionPending = false;
                 connectCompletionHandler.completed(null, connectAttachment);
                 connectAttachment = null;
+                if (connectionPending && writeSelectionKey != null) {
+                    group.removeOps(writeSelectionKey, SelectionKey.OP_CONNECT);
+                }
             } else if (writeSelectionKey == null) {
                 group.getWriteWorker().addRegister(new WorkerRegister() {
                     @Override
@@ -233,6 +236,9 @@ class EnhanceAsynchronousSocketChannel extends AsynchronousSocketChannel {
             if (totalSize != 0 || !readBuffer.hasRemaining()) {
                 readPending = false;
                 readCompletionHandler.completed(totalSize, readAttachment);
+                if (!readPending && readSelectionKey != null) {
+                    group.removeOps(readSelectionKey, SelectionKey.OP_READ);
+                }
             } else if (readSelectionKey == null) {
                 invoker.set(0);
                 group.getReadWorker().addRegister(new WorkerRegister() {
@@ -273,6 +279,9 @@ class EnhanceAsynchronousSocketChannel extends AsynchronousSocketChannel {
             if (totalSize > 0 || !writeBuffer.hasRemaining()) {
                 writePending = false;
                 writeCompletionHandler.completed(totalSize, writeAttachment);
+                if (!writePending && writeSelectionKey != null) {
+                    group.removeOps(writeSelectionKey, SelectionKey.OP_WRITE);
+                }
             } else {
                 if (writeSelectionKey == null) {
                     group.getWriteWorker().addRegister(new WorkerRegister() {

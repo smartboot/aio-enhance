@@ -99,8 +99,22 @@ class EnhanceAsynchronousChannelGroup extends AsynchronousChannelGroup {
     }
 
     public void interestOps(SelectionKey selectionKey, int opt) {
-        selectionKey.interestOps(selectionKey.interestOps() | opt);
-        selectionKey.selector().wakeup();
+        if ((selectionKey.interestOps() & opt) == 0) {
+            selectionKey.interestOps(selectionKey.interestOps() | opt);
+            selectionKey.selector().wakeup();
+        }
+    }
+
+    /**
+     * 移除关注事件
+     *
+     * @param selectionKey
+     * @param opt
+     */
+    public void removeOps(SelectionKey selectionKey, int opt) {
+        if (selectionKey.isValid()) {
+            selectionKey.interestOps(selectionKey.interestOps() & ~opt);
+        }
     }
 
     public Worker getReadWorker() {
@@ -206,20 +220,16 @@ class EnhanceAsynchronousChannelGroup extends AsynchronousChannelGroup {
                         try {
                             if ((validSelectionKey & SelectionKey.OP_ACCEPT) > 0 && key.isAcceptable()) {
                                 EnhanceAsynchronousServerSocketChannel serverSocketChannel = (EnhanceAsynchronousServerSocketChannel) key.attachment();
-                                removeOps(key, SelectionKey.OP_ACCEPT);
                                 serverSocketChannel.doAccept();
                                 continue;
                             }
                             EnhanceAsynchronousSocketChannel asynchronousSocketChannel = (EnhanceAsynchronousSocketChannel) key.attachment();
                             // 读取客户端数据
                             if ((validSelectionKey & SelectionKey.OP_WRITE) > 0 && key.isWritable()) {// 输出数据至客户端
-                                removeOps(key, SelectionKey.OP_WRITE);
                                 asynchronousSocketChannel.doWrite();
                             } else if ((validSelectionKey & SelectionKey.OP_READ) > 0 && key.isReadable()) {
-                                removeOps(key, SelectionKey.OP_READ);
                                 asynchronousSocketChannel.doRead();
                             } else if ((validSelectionKey & SelectionKey.OP_CONNECT) > 0 && key.isConnectable()) {
-                                removeOps(key, SelectionKey.OP_CONNECT);
                                 asynchronousSocketChannel.doConnect();
                             } else {
                                 System.out.println("奇怪了...");
@@ -233,16 +243,6 @@ class EnhanceAsynchronousChannelGroup extends AsynchronousChannelGroup {
             } catch (Exception e) {
                 e.printStackTrace();
             }
-        }
-
-        /**
-         * 移除关注事件
-         *
-         * @param selectionKey
-         * @param opt
-         */
-        private void removeOps(SelectionKey selectionKey, int opt) {
-            selectionKey.interestOps(selectionKey.interestOps() & ~opt);
         }
     }
 }

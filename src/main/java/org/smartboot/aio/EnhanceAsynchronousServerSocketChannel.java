@@ -99,6 +99,9 @@ class EnhanceAsynchronousServerSocketChannel extends AsynchronousServerSocketCha
                     socketChannel.finishConnect();
                     waitFinishChannel = null;
                 }
+                if (!acceptPending && selectionKey != null) {
+                    enhanceAsynchronousChannelGroup.removeOps(selectionKey, SelectionKey.OP_ACCEPT);
+                }
             }
             //首次注册selector
             else if (selectionKey == null) {
