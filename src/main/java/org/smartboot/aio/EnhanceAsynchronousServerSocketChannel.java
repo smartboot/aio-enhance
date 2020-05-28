@@ -25,7 +25,7 @@ class EnhanceAsynchronousServerSocketChannel extends AsynchronousServerSocketCha
     private final EnhanceAsynchronousChannelGroup enhanceAsynchronousChannelGroup;
     private final AtomicInteger invoker = new AtomicInteger(0);
     private CompletionHandler<AsynchronousSocketChannel, Object> acceptCompletionHandler;
-    private FutureCompletionHandler<AsynchronousSocketChannel, Void> acceptFutureCompletionHandler;
+    private FutureCompletionHandler<AsynchronousSocketChannel, Void> acceptFuture;
     private Object attachment;
     private SelectionKey selectionKey;
     private SocketChannel waitFinishChannel;
@@ -87,9 +87,9 @@ class EnhanceAsynchronousServerSocketChannel extends AsynchronousServerSocketCha
     public void doAccept() {
         try {
             //此前通过Future调用,且触发了cancel
-            if (acceptFutureCompletionHandler != null && acceptFutureCompletionHandler.isDone()) {
+            if (acceptFuture != null && acceptFuture.isDone()) {
                 acceptPending = false;
-                acceptFutureCompletionHandler = null;
+                acceptFuture = null;
                 if (selectionKey != null) {
                     enhanceAsynchronousChannelGroup.removeOps(selectionKey, SelectionKey.OP_ACCEPT);
                 }
@@ -143,7 +143,7 @@ class EnhanceAsynchronousServerSocketChannel extends AsynchronousServerSocketCha
     public Future<AsynchronousSocketChannel> accept() {
         FutureCompletionHandler<AsynchronousSocketChannel, Void> acceptFuture = new FutureCompletionHandler<>();
         accept(null, acceptFuture);
-        acceptFutureCompletionHandler = acceptFuture;
+        this.acceptFuture = acceptFuture;
         return acceptFuture;
     }
 
