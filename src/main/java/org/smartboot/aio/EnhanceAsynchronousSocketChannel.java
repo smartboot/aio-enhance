@@ -284,7 +284,13 @@ class EnhanceAsynchronousSocketChannel extends AsynchronousSocketChannel {
             }
             if (totalSize != 0 || !readBuffer.hasRemaining()) {
                 readPending = false;
-                readCompletionHandler.completed(readScattering == null ? (int) totalSize : totalSize, readAttachment);
+                if (readScattering == null) {
+                    int size = (int) totalSize;
+                    readCompletionHandler.completed(size, readAttachment);
+                } else {
+                    readCompletionHandler.completed(totalSize, readAttachment);
+                }
+
                 if (!readPending && readSelectionKey != null) {
                     group.removeOps(readSelectionKey, SelectionKey.OP_READ);
                 }
@@ -338,7 +344,13 @@ class EnhanceAsynchronousSocketChannel extends AsynchronousSocketChannel {
 
             if (totalSize > 0 || !writeBuffer.hasRemaining()) {
                 writePending = false;
-                writeCompletionHandler.completed(writeScattering == null ? (int) totalSize : totalSize, writeAttachment);
+                if (writeScattering == null) {
+                    int size = (int) totalSize;
+                    writeCompletionHandler.completed(size, writeAttachment);
+                } else {
+                    writeCompletionHandler.completed(totalSize, writeAttachment);
+                }
+
             } else {
                 writeInvoker.set(0);
                 if (writeSelectionKey == null) {
