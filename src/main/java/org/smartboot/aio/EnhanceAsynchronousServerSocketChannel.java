@@ -105,7 +105,7 @@ class EnhanceAsynchronousServerSocketChannel extends AsynchronousServerSocketCha
                 EnhanceAsynchronousSocketChannel asynchronousSocketChannel = new EnhanceAsynchronousSocketChannel(enhanceAsynchronousChannelGroup, socketChannel);
                 acceptPending = false;
                 waitFinishChannel = socketChannel;
-                asynchronousSocketChannel.getReadInvoker().set(EnhanceAsynchronousChannelGroup.MAX_INVOKER - 1);
+                asynchronousSocketChannel.getReadInvoker().set(EnhanceAsynchronousChannelGroup.MAX_INVOKER);
                 acceptCompletionHandler.completed(asynchronousSocketChannel, attachment);
                 if (waitFinishChannel != null) {
                     socketChannel.finishConnect();
