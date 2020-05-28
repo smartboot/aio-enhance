@@ -46,8 +46,8 @@ class EnhanceAsynchronousSocketChannel extends AsynchronousSocketChannel {
     private CompletionHandler<Number, Object> writeCompletionHandler;
     private CompletionHandler<Void, Object> connectCompletionHandler;
     private FutureCompletionHandler<Void, Void> connectFuture;
-    private FutureCompletionHandler<Number, Object> readFuture;
-    private FutureCompletionHandler<Number, Object> writeFuture;
+    private FutureCompletionHandler<? extends Number, Object> readFuture;
+    private FutureCompletionHandler<? extends Number, Object> writeFuture;
     private Object readAttachment;
     private Object writeAttachment;
     private Object connectAttachment;
@@ -158,7 +158,7 @@ class EnhanceAsynchronousSocketChannel extends AsynchronousSocketChannel {
         this.readAttachment = attachment;
         if (timeout > 0) {
             readFuture = new FutureCompletionHandler<>(readCompletionHandler, readAttachment);
-            readCompletionHandler = readFuture;
+            readCompletionHandler = (CompletionHandler<Number, Object>) readFuture;
             group.getScheduledExecutor().schedule(readFuture, timeout, unit);
         } else {
             this.readCompletionHandler = (CompletionHandler<Number, Object>) handler;
@@ -168,8 +168,9 @@ class EnhanceAsynchronousSocketChannel extends AsynchronousSocketChannel {
 
     @Override
     public Future<Integer> read(ByteBuffer readBuffer) {
-        FutureCompletionHandler<Integer, Void> readFuture = new FutureCompletionHandler<>();
+        FutureCompletionHandler<Integer, Object> readFuture = new FutureCompletionHandler<>();
         read(readBuffer, 0, TimeUnit.MILLISECONDS, null, readFuture);
+        this.readFuture = readFuture;
         return readFuture;
     }
 
@@ -191,19 +192,21 @@ class EnhanceAsynchronousSocketChannel extends AsynchronousSocketChannel {
         this.writeBuffer = writeBuffer;
         this.writeScattering = scattering;
         this.writeAttachment = attachment;
-        this.writeCompletionHandler = (CompletionHandler<Number, Object>) handler;
         if (timeout > 0) {
             writeFuture = new FutureCompletionHandler<>(writeCompletionHandler, writeAttachment);
-            writeCompletionHandler = writeFuture;
+            writeCompletionHandler = (CompletionHandler<Number, Object>) writeFuture;
             group.getScheduledExecutor().schedule(writeFuture, timeout, unit);
+        } else {
+            this.writeCompletionHandler = (CompletionHandler<Number, Object>) handler;
         }
         doWrite();
     }
 
     @Override
     public Future<Integer> write(ByteBuffer src) {
-        FutureCompletionHandler<Integer, Void> futureCompletionHandler = new FutureCompletionHandler<>();
-        write(src, 0, TimeUnit.MILLISECONDS, null, futureCompletionHandler);
+        FutureCompletionHandler<Integer, Object> futureCompletionHandler = new FutureCompletionHandler<>();
+        write0(src, null, 0, TimeUnit.MILLISECONDS, null, futureCompletionHandler);
+        writeFuture = futureCompletionHandler;
         return futureCompletionHandler;
     }
 
@@ -220,7 +223,7 @@ class EnhanceAsynchronousSocketChannel extends AsynchronousSocketChannel {
     public void doConnect() {
         try {
             //此前通过Future调用,且触发了cancel
-            if (connectFuture != null && connectFuture.isCancelled()) {
+            if (connectFuture != null && connectFuture.isDone()) {
                 connectionPending = false;
                 connectFuture = null;
                 return;
@@ -258,7 +261,7 @@ class EnhanceAsynchronousSocketChannel extends AsynchronousSocketChannel {
     public void doRead() {
         try {
             //此前通过Future调用,且触发了cancel
-            if (readFuture != null && readFuture.isCancelled()) {
+            if (readFuture != null && readFuture.isDone()) {
                 readPending = false;
                 readFuture = null;
                 return;
@@ -319,7 +322,7 @@ class EnhanceAsynchronousSocketChannel extends AsynchronousSocketChannel {
     public void doWrite() {
         try {
             //此前通过Future调用,且触发了cancel
-            if (writeFuture != null && writeFuture.isCancelled()) {
+            if (writeFuture != null && writeFuture.isDone()) {
                 writePending = false;
                 writeFuture = null;
                 return;

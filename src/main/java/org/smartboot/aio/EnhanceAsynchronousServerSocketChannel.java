@@ -87,7 +87,7 @@ class EnhanceAsynchronousServerSocketChannel extends AsynchronousServerSocketCha
     public void doAccept() {
         try {
             //此前通过Future调用,且触发了cancel
-            if (acceptFutureCompletionHandler != null && acceptFutureCompletionHandler.isCancelled()) {
+            if (acceptFutureCompletionHandler != null && acceptFutureCompletionHandler.isDone()) {
                 acceptPending = false;
                 acceptFutureCompletionHandler = null;
                 return;

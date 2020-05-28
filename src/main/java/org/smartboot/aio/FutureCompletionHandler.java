@@ -63,7 +63,7 @@ class FutureCompletionHandler<V, A> implements CompletionHandler<V, A>, Future<V
 
     @Override
     public boolean isDone() {
-        return done || cancel;
+        return done;
     }
 
     @Override
