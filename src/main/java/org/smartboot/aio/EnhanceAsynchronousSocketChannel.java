@@ -13,6 +13,7 @@ import java.io.IOException;
 import java.net.SocketAddress;
 import java.net.SocketOption;
 import java.nio.ByteBuffer;
+import java.nio.channels.AlreadyConnectedException;
 import java.nio.channels.AsynchronousSocketChannel;
 import java.nio.channels.ClosedChannelException;
 import java.nio.channels.CompletionHandler;
@@ -20,6 +21,7 @@ import java.nio.channels.ConnectionPendingException;
 import java.nio.channels.ReadPendingException;
 import java.nio.channels.SelectionKey;
 import java.nio.channels.Selector;
+import java.nio.channels.ShutdownChannelGroupException;
 import java.nio.channels.SocketChannel;
 import java.nio.channels.WritePendingException;
 import java.util.Set;
@@ -125,6 +127,12 @@ class EnhanceAsynchronousSocketChannel extends AsynchronousSocketChannel {
 
     @Override
     public <A> void connect(SocketAddress remote, A attachment, CompletionHandler<Void, ? super A> handler) {
+        if (group.isTerminated()) {
+            throw new ShutdownChannelGroupException();
+        }
+        if (channel.isConnected()) {
+            throw new AlreadyConnectedException();
+        }
         if (connectionPending) {
             throw new ConnectionPendingException();
         }
@@ -204,10 +212,10 @@ class EnhanceAsynchronousSocketChannel extends AsynchronousSocketChannel {
 
     @Override
     public Future<Integer> write(ByteBuffer src) {
-        FutureCompletionHandler<Integer, Object> futureCompletionHandler = new FutureCompletionHandler<>();
-        write0(src, null, 0, TimeUnit.MILLISECONDS, null, futureCompletionHandler);
-        writeFuture = futureCompletionHandler;
-        return futureCompletionHandler;
+        FutureCompletionHandler<Integer, Object> writeFuture = new FutureCompletionHandler<>();
+        write0(src, null, 0, TimeUnit.MILLISECONDS, null, writeFuture);
+        this.writeFuture = writeFuture;
+        return writeFuture;
     }
 
     @Override
@@ -262,8 +270,9 @@ class EnhanceAsynchronousSocketChannel extends AsynchronousSocketChannel {
         try {
             //此前通过Future调用,且触发了cancel
             if (readFuture != null && readFuture.isDone()) {
-                readPending = false;
                 readFuture = null;
+                group.removeOps(readSelectionKey, SelectionKey.OP_READ);
+                readPending = false;
                 return;
             }
 

@@ -90,6 +90,9 @@ class EnhanceAsynchronousServerSocketChannel extends AsynchronousServerSocketCha
             if (acceptFutureCompletionHandler != null && acceptFutureCompletionHandler.isDone()) {
                 acceptPending = false;
                 acceptFutureCompletionHandler = null;
+                if (selectionKey != null) {
+                    enhanceAsynchronousChannelGroup.removeOps(selectionKey, SelectionKey.OP_ACCEPT);
+                }
                 return;
             }
             if (invoker.getAndIncrement() > EnhanceAsynchronousChannelGroup.MAX_INVOKER) {
