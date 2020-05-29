@@ -218,7 +218,11 @@ class EnhanceAsynchronousChannelGroup extends AsynchronousChannelGroup {
             try {
                 while (running) {
                     if (keySet.isEmpty()) {
-                        selector.select();
+                        if (registers.isEmpty()) {
+                            selector.select();
+                        } else {
+                            selector.selectNow();
+                        }
                     }
                     WorkerRegister register;
                     while ((register = registers.poll()) != null) {

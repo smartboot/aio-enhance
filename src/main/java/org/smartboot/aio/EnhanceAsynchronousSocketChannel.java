@@ -242,9 +242,6 @@ class EnhanceAsynchronousSocketChannel extends AsynchronousSocketChannel {
                 Object attach = connectAttachment;
                 resetConnect();
                 completionHandler.completed(null, attach);
-                if (connectionPending && writeSelectionKey != null) {
-                    group.removeOps(writeSelectionKey, SelectionKey.OP_CONNECT);
-                }
             } else if (writeSelectionKey == null) {
                 group.getWriteWorker().addRegister(new WorkerRegister() {
                     @Override
