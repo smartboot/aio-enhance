@@ -22,7 +22,7 @@ import java.util.concurrent.atomic.AtomicInteger;
  * @version V1.0 , 2020/5/25
  */
 class EnhanceAsynchronousChannelGroup extends AsynchronousChannelGroup {
-    public static final int MAX_INVOKER = 16;
+    public static final int MAX_INVOKER = 8;
     private static final String WRITE_THREAD_NUM = "org.smartboot.aio.writeThreadNum";
     private static final String ACCEPT_THREAD_NUM = "org.smartboot.aio.acceptThreadNum";
     private final ExecutorService readExecutorService;
