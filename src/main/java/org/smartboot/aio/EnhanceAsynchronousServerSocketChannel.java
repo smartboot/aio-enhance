@@ -88,11 +88,8 @@ class EnhanceAsynchronousServerSocketChannel extends AsynchronousServerSocketCha
         try {
             //此前通过Future调用,且触发了cancel
             if (acceptFuture != null && acceptFuture.isDone()) {
-                acceptPending = false;
-                acceptFuture = null;
-                if (selectionKey != null) {
-                    enhanceAsynchronousChannelGroup.removeOps(selectionKey, SelectionKey.OP_ACCEPT);
-                }
+                resetAccept();
+                enhanceAsynchronousChannelGroup.removeOps(selectionKey, SelectionKey.OP_ACCEPT);
                 return;
             }
             if (invoker.getAndIncrement() > EnhanceAsynchronousChannelGroup.MAX_INVOKER) {
@@ -103,10 +100,12 @@ class EnhanceAsynchronousServerSocketChannel extends AsynchronousServerSocketCha
             SocketChannel socketChannel = serverSocketChannel.accept();
             if (socketChannel != null) {
                 EnhanceAsynchronousSocketChannel asynchronousSocketChannel = new EnhanceAsynchronousSocketChannel(enhanceAsynchronousChannelGroup, socketChannel);
-                acceptPending = false;
                 waitFinishChannel = socketChannel;
                 asynchronousSocketChannel.getReadInvoker().set(EnhanceAsynchronousChannelGroup.MAX_INVOKER);
-                acceptCompletionHandler.completed(asynchronousSocketChannel, attachment);
+                CompletionHandler<AsynchronousSocketChannel, Object> completionHandler = acceptCompletionHandler;
+                Object attach = attachment;
+                resetAccept();
+                completionHandler.completed(asynchronousSocketChannel, attach);
                 if (waitFinishChannel != null) {
                     socketChannel.finishConnect();
                     waitFinishChannel = null;
@@ -138,6 +137,13 @@ class EnhanceAsynchronousServerSocketChannel extends AsynchronousServerSocketCha
             this.acceptCompletionHandler.failed(e, attachment);
         }
 
+    }
+
+    private void resetAccept() {
+        acceptPending = false;
+        acceptFuture = null;
+        acceptCompletionHandler = null;
+        attachment = null;
     }
 
     @Override
