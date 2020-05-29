@@ -14,6 +14,7 @@ import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
@@ -108,12 +109,6 @@ class EnhanceAsynchronousChannelGroup extends AsynchronousChannelGroup {
         return defaultValue;
     }
 
-    public void interestOps(SelectionKey selectionKey, int opt) {
-        if ((selectionKey.interestOps() & opt) == 0) {
-            selectionKey.interestOps(selectionKey.interestOps() | opt);
-            selectionKey.selector().wakeup();
-        }
-    }
 
     /**
      * 移除关注事件
@@ -182,6 +177,23 @@ class EnhanceAsynchronousChannelGroup extends AsynchronousChannelGroup {
         return false;
     }
 
+    public void interestOps(Worker worker, SelectionKey selectionKey, int opt) {
+        if ((selectionKey.interestOps() & opt) != 0) {
+            return;
+        }
+        if (worker.selector != selectionKey.selector()) {
+            throw new RuntimeException();
+        }
+        selectionKey.interestOps(selectionKey.interestOps() | opt);
+        //Worker线程无需wakeup
+        if (worker.getWorkerThread() == Thread.currentThread()) {
+            return;
+        }
+        if (worker.wakeupAtomic.compareAndSet(false, true)) {
+            selectionKey.selector().wakeup();
+        }
+    }
+
     class Worker implements Runnable {
         /**
          * 当前Worker关注的有效事件
@@ -191,6 +203,8 @@ class EnhanceAsynchronousChannelGroup extends AsynchronousChannelGroup {
          * 当前Worker绑定的Selector
          */
         private final Selector selector;
+        private Thread workerThread;
+        private AtomicBoolean wakeupAtomic = new AtomicBoolean(false);
         /**
          * 待注册的事件
          */
@@ -200,6 +214,7 @@ class EnhanceAsynchronousChannelGroup extends AsynchronousChannelGroup {
             this.selector = selector;
             this.validSelectionKey = validSelectionKey;
         }
+
 
         /**
          * 注册事件
@@ -211,17 +226,22 @@ class EnhanceAsynchronousChannelGroup extends AsynchronousChannelGroup {
             selector.wakeup();
         }
 
+        public Thread getWorkerThread() {
+            return workerThread;
+        }
+
         @Override
         public void run() {
+            workerThread = Thread.currentThread();
             // 优先获取SelectionKey,若无关注事件触发则阻塞在selector.select(),减少select被调用次数
             Set<SelectionKey> keySet = selector.selectedKeys();
             try {
                 while (running) {
                     if (keySet.isEmpty()) {
                         if (registers.isEmpty()) {
+                            wakeupAtomic.compareAndSet(true, false);
                             selector.select();
-                        } else {
-                            selector.selectNow();
+                            wakeupAtomic.set(true);
                         }
                     }
                     WorkerRegister register;

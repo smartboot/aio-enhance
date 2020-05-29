@@ -60,6 +60,9 @@ class EnhanceAsynchronousSocketChannel extends AsynchronousSocketChannel {
     private boolean connectionPending;
     private SocketAddress remote;
 
+    private EnhanceAsynchronousChannelGroup.Worker readWorker;
+    private EnhanceAsynchronousChannelGroup.Worker writeWorker;
+
     public EnhanceAsynchronousSocketChannel(EnhanceAsynchronousChannelGroup group, SocketChannel channel) throws IOException {
         super(group.provider());
         this.group = group;
@@ -255,7 +258,7 @@ class EnhanceAsynchronousSocketChannel extends AsynchronousSocketChannel {
                     }
                 });
             } else {
-                group.interestOps(writeSelectionKey, SelectionKey.OP_CONNECT);
+                throw new IOException("unKnow exception");
             }
         } catch (IOException e) {
             connectCompletionHandler.failed(e, connectAttachment);
@@ -315,8 +318,8 @@ class EnhanceAsynchronousSocketChannel extends AsynchronousSocketChannel {
             } else {
                 readInvoker.set(0);
                 if (readSelectionKey == null) {
-
-                    group.getReadWorker().addRegister(new WorkerRegister() {
+                    readWorker = group.getReadWorker();
+                    readWorker.addRegister(new WorkerRegister() {
                         @Override
                         public void callback(Selector selector) {
                             try {
@@ -328,7 +331,7 @@ class EnhanceAsynchronousSocketChannel extends AsynchronousSocketChannel {
                         }
                     });
                 } else {
-                    group.interestOps(readSelectionKey, SelectionKey.OP_READ);
+                    group.interestOps(readWorker, readSelectionKey, SelectionKey.OP_READ);
                 }
             }
         } catch (IOException e) {
@@ -385,7 +388,8 @@ class EnhanceAsynchronousSocketChannel extends AsynchronousSocketChannel {
             } else {
                 writeInvoker.set(0);
                 if (writeSelectionKey == null) {
-                    group.getWriteWorker().addRegister(new WorkerRegister() {
+                    writeWorker = group.getWriteWorker();
+                    writeWorker.addRegister(new WorkerRegister() {
                         @Override
                         public void callback(Selector selector) {
                             try {
@@ -397,7 +401,7 @@ class EnhanceAsynchronousSocketChannel extends AsynchronousSocketChannel {
                         }
                     });
                 } else {
-                    group.interestOps(writeSelectionKey, SelectionKey.OP_WRITE);
+                    group.interestOps(writeWorker, writeSelectionKey, SelectionKey.OP_WRITE);
                 }
             }
         } catch (IOException e) {

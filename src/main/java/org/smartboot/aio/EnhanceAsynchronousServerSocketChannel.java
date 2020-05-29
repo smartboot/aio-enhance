@@ -30,6 +30,7 @@ class EnhanceAsynchronousServerSocketChannel extends AsynchronousServerSocketCha
     private SelectionKey selectionKey;
     private SocketChannel waitFinishChannel;
     private boolean acceptPending;
+    private EnhanceAsynchronousChannelGroup.Worker acceptWorker;
 
     /**
      * Initializes a new instance of this class.
@@ -92,12 +93,11 @@ class EnhanceAsynchronousServerSocketChannel extends AsynchronousServerSocketCha
                 enhanceAsynchronousChannelGroup.removeOps(selectionKey, SelectionKey.OP_ACCEPT);
                 return;
             }
-            if (invoker.getAndIncrement() > EnhanceAsynchronousChannelGroup.MAX_INVOKER) {
-                invoker.set(0);
-                enhanceAsynchronousChannelGroup.interestOps(selectionKey, SelectionKey.OP_ACCEPT);
-                return;
+            boolean directAccept = invoker.getAndIncrement() < EnhanceAsynchronousChannelGroup.MAX_INVOKER;
+            SocketChannel socketChannel = null;
+            if (directAccept) {
+                socketChannel = serverSocketChannel.accept();
             }
-            SocketChannel socketChannel = serverSocketChannel.accept();
             if (socketChannel != null) {
                 EnhanceAsynchronousSocketChannel asynchronousSocketChannel = new EnhanceAsynchronousSocketChannel(enhanceAsynchronousChannelGroup, socketChannel);
                 waitFinishChannel = socketChannel;
@@ -118,7 +118,8 @@ class EnhanceAsynchronousServerSocketChannel extends AsynchronousServerSocketCha
             else {
                 invoker.set(0);
                 if (selectionKey == null) {
-                    enhanceAsynchronousChannelGroup.getAcceptWorker().addRegister(new WorkerRegister() {
+                    acceptWorker = enhanceAsynchronousChannelGroup.getAcceptWorker();
+                    acceptWorker.addRegister(new WorkerRegister() {
                         @Override
                         public void callback(Selector selector) {
                             try {
@@ -130,7 +131,7 @@ class EnhanceAsynchronousServerSocketChannel extends AsynchronousServerSocketCha
                         }
                     });
                 } else {
-                    enhanceAsynchronousChannelGroup.interestOps(selectionKey, SelectionKey.OP_ACCEPT);
+                    enhanceAsynchronousChannelGroup.interestOps(acceptWorker, selectionKey, SelectionKey.OP_ACCEPT);
                 }
             }
         } catch (IOException e) {
