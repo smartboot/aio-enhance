@@ -232,16 +232,16 @@ class EnhanceAsynchronousSocketChannel extends AsynchronousSocketChannel {
         try {
             //此前通过Future调用,且触发了cancel
             if (connectFuture != null && connectFuture.isDone()) {
-                connectionPending = false;
-                connectFuture = null;
+                resetConnect();
                 return;
             }
 
             if (channel.connect(remote)) {
                 channel.finishConnect();
-                connectionPending = false;
-                connectCompletionHandler.completed(null, connectAttachment);
-                connectAttachment = null;
+                CompletionHandler<Void, Object> completionHandler = connectCompletionHandler;
+                Object attach = connectAttachment;
+                resetConnect();
+                completionHandler.completed(null, attach);
                 if (connectionPending && writeSelectionKey != null) {
                     group.removeOps(writeSelectionKey, SelectionKey.OP_CONNECT);
                 }
@@ -266,13 +266,19 @@ class EnhanceAsynchronousSocketChannel extends AsynchronousSocketChannel {
 
     }
 
+    private void resetConnect() {
+        connectionPending = false;
+        connectFuture = null;
+        connectAttachment = null;
+        connectCompletionHandler = null;
+    }
+
     public void doRead() {
         try {
             //此前通过Future调用,且触发了cancel
             if (readFuture != null && readFuture.isDone()) {
-                readFuture = null;
                 group.removeOps(readSelectionKey, SelectionKey.OP_READ);
-                readPending = false;
+                resetRead();
                 return;
             }
 
@@ -295,45 +301,58 @@ class EnhanceAsynchronousSocketChannel extends AsynchronousSocketChannel {
                 totalSize += readSize;
             }
             if (totalSize != 0 || !readBuffer.hasRemaining()) {
-                readPending = false;
-                if (readScattering == null) {
+                CompletionHandler<Number, Object> completionHandler = readCompletionHandler;
+                Object attach = readAttachment;
+                Scattering scattering = readScattering;
+                resetRead();
+                if (scattering == null) {
                     int size = (int) totalSize;
-                    readCompletionHandler.completed(size, readAttachment);
+                    completionHandler.completed(size, attach);
                 } else {
-                    readCompletionHandler.completed(totalSize, readAttachment);
+                    completionHandler.completed(totalSize, attach);
                 }
 
                 if (!readPending && readSelectionKey != null) {
                     group.removeOps(readSelectionKey, SelectionKey.OP_READ);
                 }
-            } else if (readSelectionKey == null) {
-                readInvoker.set(0);
-                group.getReadWorker().addRegister(new WorkerRegister() {
-                    @Override
-                    public void callback(Selector selector) {
-                        try {
-                            readSelectionKey = channel.register(selector, SelectionKey.OP_READ);
-                            readSelectionKey.attach(EnhanceAsynchronousSocketChannel.this);
-                        } catch (ClosedChannelException e) {
-                            readCompletionHandler.failed(e, readAttachment);
-                        }
-                    }
-                });
             } else {
                 readInvoker.set(0);
-                group.interestOps(readSelectionKey, SelectionKey.OP_READ);
+                if (readSelectionKey == null) {
+
+                    group.getReadWorker().addRegister(new WorkerRegister() {
+                        @Override
+                        public void callback(Selector selector) {
+                            try {
+                                readSelectionKey = channel.register(selector, SelectionKey.OP_READ);
+                                readSelectionKey.attach(EnhanceAsynchronousSocketChannel.this);
+                            } catch (ClosedChannelException e) {
+                                readCompletionHandler.failed(e, readAttachment);
+                            }
+                        }
+                    });
+                } else {
+                    group.interestOps(readSelectionKey, SelectionKey.OP_READ);
+                }
             }
         } catch (IOException e) {
             readCompletionHandler.failed(e, readAttachment);
         }
     }
 
+    private void resetRead() {
+        readPending = false;
+        readFuture = null;
+        readCompletionHandler = null;
+        readAttachment = null;
+        readBuffer = null;
+        readScattering = null;
+    }
+
     public void doWrite() {
         try {
             //此前通过Future调用,且触发了cancel
             if (writeFuture != null && writeFuture.isDone()) {
-                writePending = false;
-                writeFuture = null;
+                resetWrite();
                 return;
             }
             boolean directWrite = writeInvoker.getAndIncrement() < EnhanceAsynchronousChannelGroup.MAX_INVOKER;
@@ -355,12 +374,15 @@ class EnhanceAsynchronousSocketChannel extends AsynchronousSocketChannel {
             }
 
             if (totalSize > 0 || !writeBuffer.hasRemaining()) {
-                writePending = false;
-                if (writeScattering == null) {
+                CompletionHandler<Number, Object> completionHandler = writeCompletionHandler;
+                Object attach = writeAttachment;
+                Scattering scattering = writeScattering;
+                resetWrite();
+                if (scattering == null) {
                     int size = (int) totalSize;
-                    writeCompletionHandler.completed(size, writeAttachment);
+                    completionHandler.completed(size, attach);
                 } else {
-                    writeCompletionHandler.completed(totalSize, writeAttachment);
+                    completionHandler.completed(totalSize, attach);
                 }
 
             } else {
@@ -384,6 +406,15 @@ class EnhanceAsynchronousSocketChannel extends AsynchronousSocketChannel {
         } catch (IOException e) {
             writeCompletionHandler.failed(e, writeAttachment);
         }
+    }
+
+    private void resetWrite() {
+        writePending = false;
+        writeFuture = null;
+        writeAttachment = null;
+        writeCompletionHandler = null;
+        writeBuffer = null;
+        writeScattering = null;
     }
 
     @Override
