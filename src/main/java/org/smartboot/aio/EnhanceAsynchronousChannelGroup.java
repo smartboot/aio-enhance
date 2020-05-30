@@ -154,27 +154,39 @@ class EnhanceAsynchronousChannelGroup extends AsynchronousChannelGroup {
 
     @Override
     public boolean isShutdown() {
-        return false;
+        return readExecutorService.isShutdown();
     }
 
     @Override
     public boolean isTerminated() {
-        return false;
+        return readExecutorService.isTerminated();
     }
 
     @Override
     public void shutdown() {
-
+        running = false;
+        readExecutorService.shutdown();
+        writeExecutorService.shutdown();
+        if (acceptExecutorService != null) {
+            acceptExecutorService.shutdown();
+        }
+        scheduledExecutor.shutdown();
     }
 
     @Override
     public void shutdownNow() throws IOException {
-
+        running = false;
+        readExecutorService.shutdownNow();
+        writeExecutorService.shutdownNow();
+        if (acceptExecutorService != null) {
+            acceptExecutorService.shutdownNow();
+        }
+        scheduledExecutor.shutdownNow();
     }
 
     @Override
     public boolean awaitTermination(long timeout, TimeUnit unit) throws InterruptedException {
-        return false;
+        return readExecutorService.awaitTermination(timeout, unit);
     }
 
     public void interestOps(Worker worker, SelectionKey selectionKey, int opt) {
