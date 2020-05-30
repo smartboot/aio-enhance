@@ -64,6 +64,8 @@ class EnhanceAsynchronousSocketChannel extends AsynchronousSocketChannel {
         super(group.provider());
         this.group = group;
         this.channel = channel;
+        readWorker = group.getReadWorker();
+        writeWorker = group.getWriteWorker();
         channel.configureBlocking(false);
     }
 
@@ -279,7 +281,8 @@ class EnhanceAsynchronousSocketChannel extends AsynchronousSocketChannel {
                 return;
             }
 
-            boolean directRead = Thread.currentThread() == readWorker.getWorkerThread() && readWorker.getInvoker().getAndIncrement() < EnhanceAsynchronousChannelGroup.MAX_INVOKER;
+            boolean directRead = Thread.currentThread() == readWorker.getWorkerThread()
+                    && readWorker.getInvoker().getAndIncrement() < EnhanceAsynchronousChannelGroup.MAX_INVOKER;
 
             long totalSize = 0;
             long readSize;
@@ -313,7 +316,6 @@ class EnhanceAsynchronousSocketChannel extends AsynchronousSocketChannel {
                     group.removeOps(readSelectionKey, SelectionKey.OP_READ);
                 }
             } else if (readSelectionKey == null) {
-                readWorker = group.getReadWorker();
                 readWorker.addRegister(new WorkerRegister() {
                     @Override
                     public void callback(Selector selector) {
@@ -350,12 +352,8 @@ class EnhanceAsynchronousSocketChannel extends AsynchronousSocketChannel {
                 resetWrite();
                 return;
             }
-            boolean directWrite = false;
-            if (Thread.currentThread() == readWorker.getWorkerThread()) {
-                directWrite = true;
-            } else if (Thread.currentThread() == writeWorker.getWorkerThread()) {
-                directWrite = writeWorker.getInvoker().getAndIncrement() < EnhanceAsynchronousChannelGroup.MAX_INVOKER;
-            }
+            boolean directWrite = Thread.currentThread() != writeWorker.getWorkerThread()
+                    || writeWorker.getInvoker().getAndIncrement() < EnhanceAsynchronousChannelGroup.MAX_INVOKER;
             long totalSize = 0;
             long writeSize;
             while (directWrite && writeBuffer.hasRemaining()) {
@@ -386,7 +384,6 @@ class EnhanceAsynchronousSocketChannel extends AsynchronousSocketChannel {
                 }
 
             } else if (writeSelectionKey == null) {
-                writeWorker = group.getWriteWorker();
                 writeWorker.addRegister(new WorkerRegister() {
                     @Override
                     public void callback(Selector selector) {

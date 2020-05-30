@@ -37,6 +37,7 @@ class EnhanceAsynchronousServerSocketChannel extends AsynchronousServerSocketCha
         this.enhanceAsynchronousChannelGroup = enhanceAsynchronousChannelGroup;
         serverSocketChannel = ServerSocketChannel.open();
         serverSocketChannel.configureBlocking(false);
+        acceptWorker = enhanceAsynchronousChannelGroup.getAcceptWorker();
         System.out.println("enhance...");
     }
 
@@ -81,7 +82,8 @@ class EnhanceAsynchronousServerSocketChannel extends AsynchronousServerSocketCha
                 enhanceAsynchronousChannelGroup.removeOps(selectionKey, SelectionKey.OP_ACCEPT);
                 return;
             }
-            boolean directAccept = acceptWorker.getInvoker().getAndIncrement() < EnhanceAsynchronousChannelGroup.MAX_INVOKER;
+            boolean directAccept = (acceptWorker.getWorkerThread() == Thread.currentThread()
+                    && acceptWorker.getInvoker().getAndIncrement() < EnhanceAsynchronousChannelGroup.MAX_INVOKER);
             SocketChannel socketChannel = null;
             if (directAccept) {
                 socketChannel = serverSocketChannel.accept();
@@ -100,7 +102,6 @@ class EnhanceAsynchronousServerSocketChannel extends AsynchronousServerSocketCha
             //首次注册selector
             else {
                 if (selectionKey == null) {
-                    acceptWorker = enhanceAsynchronousChannelGroup.getAcceptWorker();
                     acceptWorker.addRegister(new WorkerRegister() {
                         @Override
                         public void callback(Selector selector) {
