@@ -22,12 +22,12 @@ import java.util.concurrent.Future;
 class EnhanceAsynchronousServerSocketChannel extends AsynchronousServerSocketChannel {
     private final ServerSocketChannel serverSocketChannel;
     private final EnhanceAsynchronousChannelGroup enhanceAsynchronousChannelGroup;
+    private final EnhanceAsynchronousChannelGroup.Worker acceptWorker;
     private CompletionHandler<AsynchronousSocketChannel, Object> acceptCompletionHandler;
     private FutureCompletionHandler<AsynchronousSocketChannel, Void> acceptFuture;
     private Object attachment;
     private SelectionKey selectionKey;
     private boolean acceptPending;
-    private EnhanceAsynchronousChannelGroup.Worker acceptWorker;
 
     /**
      * Initializes a new instance of this class.

@@ -37,6 +37,8 @@ import java.util.concurrent.TimeUnit;
 class EnhanceAsynchronousSocketChannel extends AsynchronousSocketChannel {
     private final SocketChannel channel;
     private final EnhanceAsynchronousChannelGroup group;
+    private final EnhanceAsynchronousChannelGroup.Worker readWorker;
+    private final EnhanceAsynchronousChannelGroup.Worker writeWorker;
     private ByteBuffer readBuffer;
     private Scattering readScattering;
     private ByteBuffer writeBuffer;
@@ -56,9 +58,6 @@ class EnhanceAsynchronousSocketChannel extends AsynchronousSocketChannel {
     private boolean readPending;
     private boolean connectionPending;
     private SocketAddress remote;
-
-    private EnhanceAsynchronousChannelGroup.Worker readWorker;
-    private EnhanceAsynchronousChannelGroup.Worker writeWorker;
 
     public EnhanceAsynchronousSocketChannel(EnhanceAsynchronousChannelGroup group, SocketChannel channel) throws IOException {
         super(group.provider());
