@@ -28,7 +28,6 @@ class EnhanceAsynchronousServerSocketChannel extends AsynchronousServerSocketCha
     private FutureCompletionHandler<AsynchronousSocketChannel, Void> acceptFuture;
     private Object attachment;
     private SelectionKey selectionKey;
-    private SocketChannel waitFinishChannel;
     private boolean acceptPending;
     private EnhanceAsynchronousChannelGroup.Worker acceptWorker;
 
@@ -71,15 +70,6 @@ class EnhanceAsynchronousServerSocketChannel extends AsynchronousServerSocketCha
             throw new AcceptPendingException();
         }
         acceptPending = true;
-        if (waitFinishChannel != null) {
-            try {
-                waitFinishChannel.finishConnect();
-            } catch (IOException e) {
-                acceptCompletionHandler.failed(e, attachment);
-            } finally {
-                waitFinishChannel = null;
-            }
-        }
         this.acceptCompletionHandler = (CompletionHandler<AsynchronousSocketChannel, Object>) handler;
         this.attachment = attachment;
         doAccept();
@@ -100,16 +90,12 @@ class EnhanceAsynchronousServerSocketChannel extends AsynchronousServerSocketCha
             }
             if (socketChannel != null) {
                 EnhanceAsynchronousSocketChannel asynchronousSocketChannel = new EnhanceAsynchronousSocketChannel(enhanceAsynchronousChannelGroup, socketChannel);
-                waitFinishChannel = socketChannel;
+                socketChannel.finishConnect();
                 asynchronousSocketChannel.getReadInvoker().set(EnhanceAsynchronousChannelGroup.MAX_INVOKER);
                 CompletionHandler<AsynchronousSocketChannel, Object> completionHandler = acceptCompletionHandler;
                 Object attach = attachment;
                 resetAccept();
                 completionHandler.completed(asynchronousSocketChannel, attach);
-                if (waitFinishChannel != null) {
-                    socketChannel.finishConnect();
-                    waitFinishChannel = null;
-                }
                 if (!acceptPending && selectionKey != null) {
                     enhanceAsynchronousChannelGroup.removeOps(selectionKey, SelectionKey.OP_ACCEPT);
                 }
