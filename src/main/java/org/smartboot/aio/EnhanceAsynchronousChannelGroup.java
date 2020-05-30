@@ -22,17 +22,53 @@ import java.util.concurrent.atomic.AtomicInteger;
  * @version V1.0 , 2020/5/25
  */
 class EnhanceAsynchronousChannelGroup extends AsynchronousChannelGroup {
+    /**
+     * 递归回调次数上限
+     */
     public static final int MAX_INVOKER = 8;
+    /**
+     * 写线程数
+     */
     private static final String WRITE_THREAD_NUM = "org.smartboot.aio.writeThreadNum";
+    /**
+     * accept线程数,该线程数只可少于等于进程内启用的服务端个数，多出无效
+     */
     private static final String ACCEPT_THREAD_NUM = "org.smartboot.aio.acceptThreadNum";
+    /**
+     * 读回调处理线程池,可用于业务处理
+     */
     private final ExecutorService readExecutorService;
+    /**
+     * 写回调线程池
+     */
     private final ExecutorService writeExecutorService;
+    /**
+     * 服务端accept线程池
+     */
     private ExecutorService acceptExecutorService;
+    /**
+     * 定时任务线程池
+     */
     private ScheduledThreadPoolExecutor scheduledExecutor;
+    /**
+     * accept工作组
+     */
     private Worker[] acceptWorkers = null;
+    /**
+     * write工作组
+     */
     private Worker[] writeWorkers = null;
+    /**
+     * read工作组
+     */
     private Worker[] readWorkers = null;
+    /**
+     * 线程池分配索引
+     */
     private AtomicInteger index = new AtomicInteger(0);
+    /**
+     * group运行状态
+     */
     private boolean running = true;
 
     /**
