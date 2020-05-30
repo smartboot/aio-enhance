@@ -251,6 +251,7 @@ class EnhanceAsynchronousChannelGroup extends AsynchronousChannelGroup {
          * 当前Worker绑定的Selector
          */
         private final Selector selector;
+        private final AtomicInteger invoker = new AtomicInteger(0);
         private Thread workerThread;
         private AtomicBoolean wakeupAtomic = new AtomicBoolean(false);
         /**
@@ -263,6 +264,9 @@ class EnhanceAsynchronousChannelGroup extends AsynchronousChannelGroup {
             this.validSelectionKey = validSelectionKey;
         }
 
+        public AtomicInteger getInvoker() {
+            return invoker;
+        }
 
         /**
          * 注册事件
@@ -303,6 +307,7 @@ class EnhanceAsynchronousChannelGroup extends AsynchronousChannelGroup {
                     // 执行本次已触发待处理的事件
                     while (keyIterator.hasNext()) {
                         SelectionKey key = keyIterator.next();
+                        invoker.set(0);
                         try {
                             if ((validSelectionKey & SelectionKey.OP_ACCEPT) > 0 && key.isAcceptable()) {
                                 EnhanceAsynchronousServerSocketChannel serverSocketChannel = (EnhanceAsynchronousServerSocketChannel) key.attachment();

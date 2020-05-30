@@ -27,7 +27,6 @@ import java.nio.channels.WritePendingException;
 import java.util.Set;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * 模拟JDK7的AIO处理方式
@@ -37,8 +36,6 @@ import java.util.concurrent.atomic.AtomicInteger;
  */
 class EnhanceAsynchronousSocketChannel extends AsynchronousSocketChannel {
     private final SocketChannel channel;
-    private final AtomicInteger readInvoker = new AtomicInteger(0);
-    private final AtomicInteger writeInvoker = new AtomicInteger(0);
     private final EnhanceAsynchronousChannelGroup group;
     private ByteBuffer readBuffer;
     private Scattering readScattering;
@@ -282,7 +279,7 @@ class EnhanceAsynchronousSocketChannel extends AsynchronousSocketChannel {
                 return;
             }
 
-            boolean directRead = readInvoker.getAndIncrement() < EnhanceAsynchronousChannelGroup.MAX_INVOKER;
+            boolean directRead = Thread.currentThread() == readWorker.getWorkerThread() && readWorker.getInvoker().getAndIncrement() < EnhanceAsynchronousChannelGroup.MAX_INVOKER;
 
             long totalSize = 0;
             long readSize;
@@ -315,25 +312,23 @@ class EnhanceAsynchronousSocketChannel extends AsynchronousSocketChannel {
                 if (!readPending && readSelectionKey != null) {
                     group.removeOps(readSelectionKey, SelectionKey.OP_READ);
                 }
-            } else {
-                readInvoker.set(0);
-                if (readSelectionKey == null) {
-                    readWorker = group.getReadWorker();
-                    readWorker.addRegister(new WorkerRegister() {
-                        @Override
-                        public void callback(Selector selector) {
-                            try {
-                                readSelectionKey = channel.register(selector, SelectionKey.OP_READ);
-                                readSelectionKey.attach(EnhanceAsynchronousSocketChannel.this);
-                            } catch (ClosedChannelException e) {
-                                readCompletionHandler.failed(e, readAttachment);
-                            }
+            } else if (readSelectionKey == null) {
+                readWorker = group.getReadWorker();
+                readWorker.addRegister(new WorkerRegister() {
+                    @Override
+                    public void callback(Selector selector) {
+                        try {
+                            readSelectionKey = channel.register(selector, SelectionKey.OP_READ);
+                            readSelectionKey.attach(EnhanceAsynchronousSocketChannel.this);
+                        } catch (ClosedChannelException e) {
+                            readCompletionHandler.failed(e, readAttachment);
                         }
-                    });
-                } else {
-                    group.interestOps(readWorker, readSelectionKey, SelectionKey.OP_READ);
-                }
+                    }
+                });
+            } else {
+                group.interestOps(readWorker, readSelectionKey, SelectionKey.OP_READ);
             }
+
         } catch (IOException e) {
             readCompletionHandler.failed(e, readAttachment);
         }
@@ -355,7 +350,12 @@ class EnhanceAsynchronousSocketChannel extends AsynchronousSocketChannel {
                 resetWrite();
                 return;
             }
-            boolean directWrite = writeInvoker.getAndIncrement() < EnhanceAsynchronousChannelGroup.MAX_INVOKER;
+            boolean directWrite = false;
+            if (Thread.currentThread() == readWorker.getWorkerThread()) {
+                directWrite = true;
+            } else if (Thread.currentThread() == writeWorker.getWorkerThread()) {
+                directWrite = writeWorker.getInvoker().getAndIncrement() < EnhanceAsynchronousChannelGroup.MAX_INVOKER;
+            }
             long totalSize = 0;
             long writeSize;
             while (directWrite && writeBuffer.hasRemaining()) {
@@ -385,24 +385,21 @@ class EnhanceAsynchronousSocketChannel extends AsynchronousSocketChannel {
                     completionHandler.completed(totalSize, attach);
                 }
 
-            } else {
-                writeInvoker.set(0);
-                if (writeSelectionKey == null) {
-                    writeWorker = group.getWriteWorker();
-                    writeWorker.addRegister(new WorkerRegister() {
-                        @Override
-                        public void callback(Selector selector) {
-                            try {
-                                writeSelectionKey = channel.register(selector, SelectionKey.OP_WRITE);
-                                writeSelectionKey.attach(EnhanceAsynchronousSocketChannel.this);
-                            } catch (ClosedChannelException e) {
-                                writeCompletionHandler.failed(e, writeAttachment);
-                            }
+            } else if (writeSelectionKey == null) {
+                writeWorker = group.getWriteWorker();
+                writeWorker.addRegister(new WorkerRegister() {
+                    @Override
+                    public void callback(Selector selector) {
+                        try {
+                            writeSelectionKey = channel.register(selector, SelectionKey.OP_WRITE);
+                            writeSelectionKey.attach(EnhanceAsynchronousSocketChannel.this);
+                        } catch (ClosedChannelException e) {
+                            writeCompletionHandler.failed(e, writeAttachment);
                         }
-                    });
-                } else {
-                    group.interestOps(writeWorker, writeSelectionKey, SelectionKey.OP_WRITE);
-                }
+                    }
+                });
+            } else {
+                group.interestOps(writeWorker, writeSelectionKey, SelectionKey.OP_WRITE);
             }
         } catch (IOException e) {
             writeCompletionHandler.failed(e, writeAttachment);
@@ -421,9 +418,5 @@ class EnhanceAsynchronousSocketChannel extends AsynchronousSocketChannel {
     @Override
     public boolean isOpen() {
         return channel.isOpen();
-    }
-
-    public AtomicInteger getReadInvoker() {
-        return readInvoker;
     }
 }

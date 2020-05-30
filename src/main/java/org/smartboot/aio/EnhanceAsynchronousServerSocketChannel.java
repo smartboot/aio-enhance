@@ -14,7 +14,6 @@ import java.nio.channels.ServerSocketChannel;
 import java.nio.channels.SocketChannel;
 import java.util.Set;
 import java.util.concurrent.Future;
-import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * @author 三刀
@@ -23,7 +22,6 @@ import java.util.concurrent.atomic.AtomicInteger;
 class EnhanceAsynchronousServerSocketChannel extends AsynchronousServerSocketChannel {
     private final ServerSocketChannel serverSocketChannel;
     private final EnhanceAsynchronousChannelGroup enhanceAsynchronousChannelGroup;
-    private final AtomicInteger invoker = new AtomicInteger(0);
     private CompletionHandler<AsynchronousSocketChannel, Object> acceptCompletionHandler;
     private FutureCompletionHandler<AsynchronousSocketChannel, Void> acceptFuture;
     private Object attachment;
@@ -83,7 +81,7 @@ class EnhanceAsynchronousServerSocketChannel extends AsynchronousServerSocketCha
                 enhanceAsynchronousChannelGroup.removeOps(selectionKey, SelectionKey.OP_ACCEPT);
                 return;
             }
-            boolean directAccept = invoker.getAndIncrement() < EnhanceAsynchronousChannelGroup.MAX_INVOKER;
+            boolean directAccept = acceptWorker.getInvoker().getAndIncrement() < EnhanceAsynchronousChannelGroup.MAX_INVOKER;
             SocketChannel socketChannel = null;
             if (directAccept) {
                 socketChannel = serverSocketChannel.accept();
@@ -91,7 +89,6 @@ class EnhanceAsynchronousServerSocketChannel extends AsynchronousServerSocketCha
             if (socketChannel != null) {
                 EnhanceAsynchronousSocketChannel asynchronousSocketChannel = new EnhanceAsynchronousSocketChannel(enhanceAsynchronousChannelGroup, socketChannel);
                 socketChannel.finishConnect();
-                asynchronousSocketChannel.getReadInvoker().set(EnhanceAsynchronousChannelGroup.MAX_INVOKER);
                 CompletionHandler<AsynchronousSocketChannel, Object> completionHandler = acceptCompletionHandler;
                 Object attach = attachment;
                 resetAccept();
@@ -102,7 +99,6 @@ class EnhanceAsynchronousServerSocketChannel extends AsynchronousServerSocketCha
             }
             //首次注册selector
             else {
-                invoker.set(0);
                 if (selectionKey == null) {
                     acceptWorker = enhanceAsynchronousChannelGroup.getAcceptWorker();
                     acceptWorker.addRegister(new WorkerRegister() {
