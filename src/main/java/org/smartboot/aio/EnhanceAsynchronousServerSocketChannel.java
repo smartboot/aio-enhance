@@ -100,22 +100,20 @@ class EnhanceAsynchronousServerSocketChannel extends AsynchronousServerSocketCha
                 }
             }
             //首次注册selector
-            else {
-                if (selectionKey == null) {
-                    acceptWorker.addRegister(new WorkerRegister() {
-                        @Override
-                        public void callback(Selector selector) {
-                            try {
-                                selectionKey = serverSocketChannel.register(selector, SelectionKey.OP_ACCEPT);
-                                selectionKey.attach(EnhanceAsynchronousServerSocketChannel.this);
-                            } catch (ClosedChannelException e) {
-                                acceptCompletionHandler.failed(e, attachment);
-                            }
+            else if (selectionKey == null) {
+                acceptWorker.addRegister(new WorkerRegister() {
+                    @Override
+                    public void callback(Selector selector) {
+                        try {
+                            selectionKey = serverSocketChannel.register(selector, SelectionKey.OP_ACCEPT);
+                            selectionKey.attach(EnhanceAsynchronousServerSocketChannel.this);
+                        } catch (ClosedChannelException e) {
+                            acceptCompletionHandler.failed(e, attachment);
                         }
-                    });
-                } else {
-                    enhanceAsynchronousChannelGroup.interestOps(acceptWorker, selectionKey, SelectionKey.OP_ACCEPT);
-                }
+                    }
+                });
+            } else {
+                enhanceAsynchronousChannelGroup.interestOps(acceptWorker, selectionKey, SelectionKey.OP_ACCEPT);
             }
         } catch (IOException e) {
             this.acceptCompletionHandler.failed(e, attachment);
