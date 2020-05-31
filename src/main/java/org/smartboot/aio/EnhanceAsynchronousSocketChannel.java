@@ -244,15 +244,17 @@ class EnhanceAsynchronousSocketChannel extends AsynchronousSocketChannel {
                 resetConnect();
                 return;
             }
-
-            if (channel.connect(remote)) {
-                channel.finishConnect();
+            boolean connected = channel.isConnectionPending();
+            if (connected || channel.connect(remote)) {
+                connected = channel.finishConnect();
+            }
+            if (connected) {
                 CompletionHandler<Void, Object> completionHandler = connectCompletionHandler;
                 Object attach = connectAttachment;
                 resetConnect();
                 completionHandler.completed(null, attach);
             } else if (writeSelectionKey == null) {
-                group.getWriteWorker().addRegister(new WorkerRegister() {
+                writeWorker.addRegister(new WorkerRegister() {
                     @Override
                     public void callback(Selector selector) {
                         try {
@@ -364,8 +366,8 @@ class EnhanceAsynchronousSocketChannel extends AsynchronousSocketChannel {
             }
             //非writeWorker线程允许无限递归输出,事实上也不会出现该场景
             //writeWorker递归回调限制上线EnhanceAsynchronousChannelGroup.MAX_INVOKER
-            boolean directWrite = Thread.currentThread() != writeWorker.getWorkerThread()
-                    || writeWorker.getInvoker().getAndIncrement() < EnhanceAsynchronousChannelGroup.MAX_INVOKER;
+            boolean directWrite = Thread.currentThread() == writeWorker.getWorkerThread()
+                    && writeWorker.getInvoker().getAndIncrement() < EnhanceAsynchronousChannelGroup.MAX_INVOKER;
             long totalSize = 0;
             long writeSize;
             boolean hasRemain = true;
