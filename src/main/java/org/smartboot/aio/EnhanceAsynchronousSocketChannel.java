@@ -310,7 +310,7 @@ class EnhanceAsynchronousSocketChannel extends AsynchronousSocketChannel {
                 }
                 totalSize += readSize;
             }
-            if (totalSize != 0 || !readBuffer.hasRemaining()) {
+            if (totalSize != 0 || !hasRemain) {
                 CompletionHandler<Number, Object> completionHandler = readCompletionHandler;
                 Object attach = readAttachment;
                 Scattering scattering = readScattering;
@@ -362,6 +362,8 @@ class EnhanceAsynchronousSocketChannel extends AsynchronousSocketChannel {
                 resetWrite();
                 return;
             }
+            //非writeWorker线程允许无限递归输出,事实上也不会出现该场景
+            //writeWorker递归回调限制上线EnhanceAsynchronousChannelGroup.MAX_INVOKER
             boolean directWrite = Thread.currentThread() != writeWorker.getWorkerThread()
                     || writeWorker.getInvoker().getAndIncrement() < EnhanceAsynchronousChannelGroup.MAX_INVOKER;
             long totalSize = 0;
@@ -384,7 +386,7 @@ class EnhanceAsynchronousSocketChannel extends AsynchronousSocketChannel {
                 totalSize += writeSize;
             }
 
-            if (totalSize > 0 || !writeBuffer.hasRemaining()) {
+            if (totalSize > 0 || !hasRemain) {
                 CompletionHandler<Number, Object> completionHandler = writeCompletionHandler;
                 Object attach = writeAttachment;
                 Scattering scattering = writeScattering;
