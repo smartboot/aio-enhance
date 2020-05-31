@@ -18,6 +18,7 @@ import java.nio.channels.AsynchronousSocketChannel;
 import java.nio.channels.ClosedChannelException;
 import java.nio.channels.CompletionHandler;
 import java.nio.channels.ConnectionPendingException;
+import java.nio.channels.NotYetConnectedException;
 import java.nio.channels.ReadPendingException;
 import java.nio.channels.SelectionKey;
 import java.nio.channels.Selector;
@@ -158,6 +159,9 @@ class EnhanceAsynchronousSocketChannel extends AsynchronousSocketChannel {
     }
 
     private <V extends Number, A> void read0(ByteBuffer readBuffer, Scattering scattering, long timeout, TimeUnit unit, A attachment, CompletionHandler<V, ? super A> handler) {
+        if (!channel.isConnected()) {
+            throw new NotYetConnectedException();
+        }
         if (readPending) {
             throw new ReadPendingException();
         }
@@ -193,10 +197,14 @@ class EnhanceAsynchronousSocketChannel extends AsynchronousSocketChannel {
         write0(src, null, timeout, unit, attachment, handler);
     }
 
-    public <V extends Number, A> void write0(ByteBuffer writeBuffer, Scattering scattering, long timeout, TimeUnit unit, A attachment, CompletionHandler<V, ? super A> handler) {
+    private <V extends Number, A> void write0(ByteBuffer writeBuffer, Scattering scattering, long timeout, TimeUnit unit, A attachment, CompletionHandler<V, ? super A> handler) {
+        if (!channel.isConnected()) {
+            throw new NotYetConnectedException();
+        }
         if (writePending) {
             throw new WritePendingException();
         }
+
         writePending = true;
         this.writeBuffer = writeBuffer;
         this.writeScattering = scattering;
@@ -285,11 +293,14 @@ class EnhanceAsynchronousSocketChannel extends AsynchronousSocketChannel {
 
             long totalSize = 0;
             long readSize;
-            while (directRead && readBuffer.hasRemaining()) {
+            boolean hasRemain = true;
+            while (directRead && hasRemain) {
                 if (readScattering != null) {
                     readSize = channel.read(readScattering.getBuffers(), readScattering.getOffset(), readScattering.getLength());
+                    hasRemain = hasRemaining(readScattering);
                 } else {
                     readSize = channel.read(readBuffer);
+                    hasRemain = readBuffer.hasRemaining();
                 }
                 if (readSize <= 0) {
                     if (totalSize == 0) {
@@ -355,11 +366,14 @@ class EnhanceAsynchronousSocketChannel extends AsynchronousSocketChannel {
                     || writeWorker.getInvoker().getAndIncrement() < EnhanceAsynchronousChannelGroup.MAX_INVOKER;
             long totalSize = 0;
             long writeSize;
-            while (directWrite && writeBuffer.hasRemaining()) {
+            boolean hasRemain = true;
+            while (directWrite && hasRemain) {
                 if (writeScattering != null) {
                     writeSize = channel.write(writeScattering.getBuffers(), writeScattering.getOffset(), writeScattering.getLength());
+                    hasRemain = hasRemaining(writeScattering);
                 } else {
                     writeSize = channel.write(writeBuffer);
+                    hasRemain = writeBuffer.hasRemaining();
                 }
                 if (writeSize <= 0) {
                     if (totalSize == 0) {
@@ -400,6 +414,15 @@ class EnhanceAsynchronousSocketChannel extends AsynchronousSocketChannel {
         } catch (IOException e) {
             writeCompletionHandler.failed(e, writeAttachment);
         }
+    }
+
+    private boolean hasRemaining(Scattering scattering) {
+        for (int i = 0; i < scattering.getLength(); i++) {
+            if (scattering.getBuffers()[scattering.getOffset() + i].hasRemaining()) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private void resetWrite() {
