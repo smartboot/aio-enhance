@@ -65,7 +65,8 @@ class EnhanceAsynchronousChannelGroup extends AsynchronousChannelGroup {
     /**
      * 线程池分配索引
      */
-    private AtomicInteger index = new AtomicInteger(0);
+    private AtomicInteger readIndex = new AtomicInteger(0);
+    private AtomicInteger writeIndex = new AtomicInteger(0);
     /**
      * group运行状态
      */
@@ -159,15 +160,15 @@ class EnhanceAsynchronousChannelGroup extends AsynchronousChannelGroup {
     }
 
     public Worker getReadWorker() {
-        return readWorkers[index(readWorkers.length)];
+        return readWorkers[index(readWorkers.length, readIndex)];
     }
 
     public Worker getWriteWorker() {
-        return writeWorkers[index(writeWorkers.length)];
+        return writeWorkers[index(writeWorkers.length, writeIndex)];
     }
 
     public Worker getAcceptWorker() {
-        return acceptWorkers[index(acceptWorkers.length)];
+        return acceptWorkers[index(acceptWorkers.length, writeIndex)];
     }
 
     public ScheduledThreadPoolExecutor getScheduledExecutor() {
@@ -180,7 +181,7 @@ class EnhanceAsynchronousChannelGroup extends AsynchronousChannelGroup {
      * @param arrayLength
      * @return
      */
-    private int index(int arrayLength) {
+    private int index(int arrayLength, AtomicInteger index) {
         int i = index.getAndIncrement() % arrayLength;
         if (i < 0) {
             i = -i;
