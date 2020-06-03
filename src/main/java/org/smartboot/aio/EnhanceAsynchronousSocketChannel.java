@@ -28,6 +28,7 @@ import java.nio.channels.WritePendingException;
 import java.util.Set;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * 模拟JDK7的AIO处理方式
@@ -59,6 +60,7 @@ class EnhanceAsynchronousSocketChannel extends AsynchronousSocketChannel {
     private boolean readPending;
     private boolean connectionPending;
     private SocketAddress remote;
+    private AtomicInteger writeInvoker = new AtomicInteger(0);
 
     public EnhanceAsynchronousSocketChannel(EnhanceAsynchronousChannelGroup group, SocketChannel channel) throws IOException {
         super(group.provider());
@@ -364,11 +366,7 @@ class EnhanceAsynchronousSocketChannel extends AsynchronousSocketChannel {
                 resetWrite();
                 return;
             }
-            //非writeWorker线程允许无限递归输出,事实上也不会出现该场景
-            //writeWorker递归回调限制上线EnhanceAsynchronousChannelGroup.MAX_INVOKER
-            boolean directWrite = Thread.currentThread() == readWorker.getWorkerThread() ||
-                    (Thread.currentThread() == writeWorker.getWorkerThread()
-                            && writeWorker.getInvoker().getAndIncrement() < EnhanceAsynchronousChannelGroup.MAX_INVOKER);
+            boolean directWrite = writeInvoker.getAndIncrement() < EnhanceAsynchronousChannelGroup.MAX_INVOKER;
             long totalSize = 0;
             long writeSize;
             boolean hasRemain = true;
@@ -402,6 +400,7 @@ class EnhanceAsynchronousSocketChannel extends AsynchronousSocketChannel {
                 }
 
             } else if (writeSelectionKey == null) {
+                writeInvoker.set(0);
                 writeWorker.addRegister(new WorkerRegister() {
                     @Override
                     public void callback(Selector selector) {
@@ -414,6 +413,7 @@ class EnhanceAsynchronousSocketChannel extends AsynchronousSocketChannel {
                     }
                 });
             } else {
+                writeInvoker.set(0);
                 group.interestOps(writeWorker, writeSelectionKey, SelectionKey.OP_WRITE);
             }
         } catch (IOException e) {
