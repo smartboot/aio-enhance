@@ -43,30 +43,30 @@ class EnhanceAsynchronousChannelGroup extends AsynchronousChannelGroup {
      */
     private final ExecutorService writeExecutorService;
     /**
+     * write工作组
+     */
+    private final Worker[] writeWorkers;
+    /**
+     * read工作组
+     */
+    private final Worker[] readWorkers;
+    /**
+     * 线程池分配索引
+     */
+    private final AtomicInteger readIndex = new AtomicInteger(0);
+    private final AtomicInteger writeIndex = new AtomicInteger(0);
+    /**
+     * 定时任务线程池
+     */
+    private final ScheduledThreadPoolExecutor scheduledExecutor;
+    /**
      * 服务端accept线程池
      */
     private ExecutorService acceptExecutorService;
     /**
-     * 定时任务线程池
-     */
-    private ScheduledThreadPoolExecutor scheduledExecutor;
-    /**
      * accept工作组
      */
     private Worker[] acceptWorkers = null;
-    /**
-     * write工作组
-     */
-    private Worker[] writeWorkers = null;
-    /**
-     * read工作组
-     */
-    private Worker[] readWorkers = null;
-    /**
-     * 线程池分配索引
-     */
-    private AtomicInteger readIndex = new AtomicInteger(0);
-    private AtomicInteger writeIndex = new AtomicInteger(0);
     /**
      * group运行状态
      */
@@ -124,7 +124,7 @@ class EnhanceAsynchronousChannelGroup extends AsynchronousChannelGroup {
     private ThreadPoolExecutor getThreadPoolExecutor(final String prefix, int threadNum) {
         return new ThreadPoolExecutor(threadNum, threadNum, 0L, TimeUnit.MILLISECONDS,
                 new LinkedBlockingQueue<Runnable>(), new ThreadFactory() {
-            private AtomicInteger atomicInteger = new AtomicInteger(0);
+            private final AtomicInteger atomicInteger = new AtomicInteger(0);
 
             @Override
             public Thread newThread(Runnable r) {
@@ -139,7 +139,7 @@ class EnhanceAsynchronousChannelGroup extends AsynchronousChannelGroup {
             return defaultValue;
         }
         try {
-            return Integer.valueOf(value);
+            return Integer.parseInt(value);
         } catch (Exception e) {
             e.printStackTrace();
         }
@@ -150,8 +150,8 @@ class EnhanceAsynchronousChannelGroup extends AsynchronousChannelGroup {
     /**
      * 移除关注事件
      *
-     * @param selectionKey
-     * @param opt
+     * @param selectionKey 待操作的selectionKey
+     * @param opt          移除的事件
      */
     public void removeOps(SelectionKey selectionKey, int opt) {
         if (selectionKey.isValid()) {
@@ -178,8 +178,9 @@ class EnhanceAsynchronousChannelGroup extends AsynchronousChannelGroup {
     /**
      * 获取分配Worker的索引下标
      *
-     * @param arrayLength
-     * @return
+     * @param arrayLength 数组对象长度
+     * @param index       索引游标
+     * @return 分配到的下标
      */
     private int index(int arrayLength, AtomicInteger index) {
         int i = index.getAndIncrement() % arrayLength;
@@ -253,12 +254,12 @@ class EnhanceAsynchronousChannelGroup extends AsynchronousChannelGroup {
          */
         private final Selector selector;
         private final AtomicInteger invoker = new AtomicInteger(0);
-        private Thread workerThread;
-        private AtomicBoolean wakeupAtomic = new AtomicBoolean(false);
+        private final AtomicBoolean wakeupAtomic = new AtomicBoolean(false);
         /**
          * 待注册的事件
          */
-        private ConcurrentLinkedQueue<WorkerRegister> registers = new ConcurrentLinkedQueue<>();
+        private final ConcurrentLinkedQueue<WorkerRegister> registers = new ConcurrentLinkedQueue<>();
+        private Thread workerThread;
 
         Worker(Selector selector, int validSelectionKey) {
             this.selector = selector;
@@ -271,8 +272,6 @@ class EnhanceAsynchronousChannelGroup extends AsynchronousChannelGroup {
 
         /**
          * 注册事件
-         *
-         * @param register
          */
         void addRegister(WorkerRegister register) {
             registers.offer(register);
