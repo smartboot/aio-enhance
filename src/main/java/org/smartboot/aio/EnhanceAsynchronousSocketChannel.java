@@ -41,7 +41,7 @@ class EnhanceAsynchronousSocketChannel extends AsynchronousSocketChannel {
     private final EnhanceAsynchronousChannelGroup group;
     private final EnhanceAsynchronousChannelGroup.Worker readWorker;
     private final EnhanceAsynchronousChannelGroup.Worker writeWorker;
-    private AtomicInteger writeInvoker = new AtomicInteger(0);
+    private final AtomicInteger writeInvoker = new AtomicInteger(0);
     private ByteBuffer readBuffer;
     private Scattering readScattering;
     private ByteBuffer writeBuffer;
@@ -369,7 +369,8 @@ class EnhanceAsynchronousSocketChannel extends AsynchronousSocketChannel {
             if (wakeup) {
                 writeInvoker.set(0);
             }
-            boolean directWrite = writeInvoker.getAndIncrement() < EnhanceAsynchronousChannelGroup.MAX_INVOKER;
+            boolean directWrite = writeWorker.getWorkerThread() != Thread.currentThread()
+                    || writeInvoker.getAndIncrement() < EnhanceAsynchronousChannelGroup.MAX_INVOKER;
             long totalSize = 0;
             long writeSize;
             boolean hasRemain = true;
