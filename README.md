@@ -1,6 +1,6 @@
 aio_enhance（音译：硬汉） 是一款无侵入式的 Java AIO增强类库，解决原生 AIO 通信设计中存在的缺陷，提供更高效、更稳定的 AIO 通信服务。
 
-aio_enhance 采用了 NIO 技术对 Java AIO 接口进行重新实现，不改变原有的 AIO 使用习惯。用户可自由选择 Java 原生提供的，或则由 aio_enhance 重定义的 AIO 通信模型，整体架构如下图。
+aio_enhance 采用了 NIO 技术对 Java AIO 接口进行重新实现，不改变原有的 AIO 使用习惯。用户可自由选择 Java 原生的，或则由 aio_enhance 定义的 AIO 通信模型，整体架构如下图。
 
 ![](framework.png)
 
