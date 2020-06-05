@@ -318,7 +318,7 @@ class EnhanceAsynchronousChannelGroup extends AsynchronousChannelGroup {
                             // 读取客户端数据
                             if ((validSelectionKey & SelectionKey.OP_WRITE) > 0 && key.isWritable()) {// 输出数据至客户端
                                 removeOps(key, SelectionKey.OP_WRITE);
-                                asynchronousSocketChannel.doWrite(true);
+                                asynchronousSocketChannel.doWrite();
                             } else if ((validSelectionKey & SelectionKey.OP_READ) > 0 && key.isReadable()) {
                                 asynchronousSocketChannel.doRead();
                             } else if ((validSelectionKey & SelectionKey.OP_CONNECT) > 0 && key.isConnectable()) {

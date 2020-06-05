@@ -218,7 +218,7 @@ class EnhanceAsynchronousSocketChannel extends AsynchronousSocketChannel {
         } else {
             this.writeCompletionHandler = (CompletionHandler<Number, Object>) handler;
         }
-        doWrite(false);
+        doWrite();
     }
 
     @Override
@@ -359,15 +359,12 @@ class EnhanceAsynchronousSocketChannel extends AsynchronousSocketChannel {
         readScattering = null;
     }
 
-    public void doWrite(boolean wakeup) {
+    public void doWrite() {
         try {
             //此前通过Future调用,且触发了cancel
             if (writeFuture != null && writeFuture.isDone()) {
                 resetWrite();
                 return;
-            }
-            if (wakeup) {
-                writeInvoker.set(0);
             }
             boolean directWrite = writeWorker.getWorkerThread() != Thread.currentThread()
                     || writeInvoker.getAndIncrement() < EnhanceAsynchronousChannelGroup.MAX_INVOKER;
@@ -404,6 +401,7 @@ class EnhanceAsynchronousSocketChannel extends AsynchronousSocketChannel {
                 }
 
             } else if (writeSelectionKey == null) {
+                writeInvoker.set(0);
                 writeWorker.addRegister(new WorkerRegister() {
                     @Override
                     public void callback(Selector selector) {
@@ -416,6 +414,7 @@ class EnhanceAsynchronousSocketChannel extends AsynchronousSocketChannel {
                     }
                 });
             } else {
+                writeInvoker.set(0);
                 group.interestOps(writeWorker, writeSelectionKey, SelectionKey.OP_WRITE);
             }
         } catch (IOException e) {
