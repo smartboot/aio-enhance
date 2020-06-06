@@ -172,7 +172,7 @@ class EnhanceAsynchronousSocketChannel extends AsynchronousSocketChannel {
         this.readScattering = scattering;
         this.readAttachment = attachment;
         if (timeout > 0) {
-            readFuture = new FutureCompletionHandler<>(readCompletionHandler, readAttachment);
+            readFuture = new FutureCompletionHandler<>((CompletionHandler<Number, Object>) handler, readAttachment);
             readCompletionHandler = (CompletionHandler<Number, Object>) readFuture;
             group.getScheduledExecutor().schedule(readFuture, timeout, unit);
         } else {
@@ -212,7 +212,7 @@ class EnhanceAsynchronousSocketChannel extends AsynchronousSocketChannel {
         this.writeScattering = scattering;
         this.writeAttachment = attachment;
         if (timeout > 0) {
-            writeFuture = new FutureCompletionHandler<>(writeCompletionHandler, writeAttachment);
+            writeFuture = new FutureCompletionHandler<>((CompletionHandler<Number, Object>) handler, writeAttachment);
             writeCompletionHandler = (CompletionHandler<Number, Object>) writeFuture;
             group.getScheduledExecutor().schedule(writeFuture, timeout, unit);
         } else {
