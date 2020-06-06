@@ -320,8 +320,7 @@ class EnhanceAsynchronousSocketChannel extends AsynchronousSocketChannel {
                 Scattering scattering = readScattering;
                 resetRead();
                 if (scattering == null) {
-                    int size = (int) totalSize;
-                    completionHandler.completed(size, attach);
+                    completionHandler.completed((int) totalSize, attach);
                 } else {
                     completionHandler.completed(totalSize, attach);
                 }
@@ -394,8 +393,7 @@ class EnhanceAsynchronousSocketChannel extends AsynchronousSocketChannel {
                 Scattering scattering = writeScattering;
                 resetWrite();
                 if (scattering == null) {
-                    int size = (int) totalSize;
-                    completionHandler.completed(size, attach);
+                    completionHandler.completed((int) totalSize, attach);
                 } else {
                     completionHandler.completed(totalSize, attach);
                 }
