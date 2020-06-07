@@ -1,15 +1,18 @@
-aio_enhance（音译：硬汉） 是一款无侵入式的 Java AIO增强类库，解决原生 AIO 通信设计中存在的缺陷，提供更高效、更稳定的 AIO 通信服务。
+aio_enhance（音译：硬汉） 是一款无侵入式的 Java AIO 内核增强类库，解决原生 AIO 通信设计中存在的缺陷，提供更高效、更稳定的 AIO 通信服务。
 
-aio_enhance 采用了 NIO 技术对 Java AIO 接口进行重新实现，不改变原有的 AIO 使用习惯。用户可自由选择 Java 原生的，或则由 aio_enhance 定义的 AIO 通信模型，整体架构如下图。
+aio_enhance 采用了 NIO 技术对 Java AIO 接口进行重新实现，兼容完整的 AIO 接口定义。用户可自由选择 Java 原生的，或则由 aio_enhance 重定义的实现，整体架构如下图。
 
 ![](framework.png)
 
-## 一、适用场景及人群
+## 一、适用场景
 
-- 所有基于 Java 原生 AIO 技术开发的通信框架（如：[smart-socket](https://gitee.com/smartboot/smart-socket)），并应用于高并发场景。
-- 从事通信开发并对原理有较高热情的开发人员。
+如果您符合以下几个条件，aio_enhance 会是一个不错的选择。
 
-## 二、增强的目的
+- 基于 Java AIO 实现的通信场景；
+- 对高并发有严苛要求；
+- 多核CPU环境（经作者验证，28核CPU下有显著性能提升，4核CPU无需引用aio_enhance，其他需要用户自行评估）；
+
+## 二、目的
 
 **2.1 解决平台兼容性问题。**
 
@@ -23,9 +26,9 @@ Java 原生 AIO 在 Mac 操作系统下存在兼容性问题，进行性能压�
 
 **2.3 优化 AIO 线程模型**
 
-Java AIO 相较于 NIO 多了一层异步线程模型，极大降低了开发人员的编程难度。但是通信过程中的 accept、connect、read、write 等事件都是复用同一组线程资源，容易造成读写回调进入**死锁状态**。普通的 AIO通信框架在设计上需要特别关注这一点，但如果引入 aio-enhance 则无此顾虑。
+Java AIO 相较于 NIO 多了一层异步线程模型，极大降低了开发人员的编程难度。但是通信过程中的 accept、connect、read、write 等事件都是复用同一组线程资源，容易造成读写回调进入**死锁状态**。 AIO通信框架在设计上需要特别关注这一点，但如果引入 aio-enhance 则无此顾虑。
 
-## 三、集成增强包
+## 三、集成
 
 **步骤一：依赖**
 
@@ -46,4 +49,10 @@ java -Djava.nio.channels.spi.AsynchronousChannelProvider=org.smartboot.aio.Enhan
 ```
 
 ## 四、比较验证
+
+
+
+## 最后
+
+经常能看到一些关于 AIO 和 NIO 的比较，严格意义上两者是不同维度的，不具备可比性。AIO 可以视为 `AIO = NIO + JDK线程模型 `（正如`Netty = NIO + netty线程模型`），只不过这个线程模型不是最优解。而现在，`AIO = NIO + aio_enhance`这个公式会是一个更好的选择。
 
