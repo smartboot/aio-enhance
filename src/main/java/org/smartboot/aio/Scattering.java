@@ -5,7 +5,7 @@ import java.nio.ByteBuffer;
 /**
  * Scattering read or write
  */
-class Scattering {
+final class Scattering {
     private final ByteBuffer[] buffers;
     private final int offset;
     private final int length;

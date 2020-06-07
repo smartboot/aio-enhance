@@ -36,7 +36,7 @@ import java.util.concurrent.atomic.AtomicInteger;
  * @author 三刀
  * @version V1.0 , 2018/5/24
  */
-class EnhanceAsynchronousSocketChannel extends AsynchronousSocketChannel {
+final class EnhanceAsynchronousSocketChannel extends AsynchronousSocketChannel {
     private final SocketChannel channel;
     private final EnhanceAsynchronousChannelGroup group;
     private final EnhanceAsynchronousChannelGroup.Worker readWorker;

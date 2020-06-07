@@ -212,7 +212,7 @@ class EnhanceAsynchronousChannelGroup extends AsynchronousChannelGroup {
     }
 
     @Override
-    public void shutdownNow() throws IOException {
+    public void shutdownNow() {
         running = false;
         readExecutorService.shutdownNow();
         writeExecutorService.shutdownNow();

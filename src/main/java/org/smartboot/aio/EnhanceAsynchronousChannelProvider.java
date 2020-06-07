@@ -16,7 +16,7 @@ import java.util.concurrent.TimeUnit;
  * @author 三刀
  * @version V1.0 , 2020/5/25
  */
-public class EnhanceAsynchronousChannelProvider extends AsynchronousChannelProvider {
+public final class EnhanceAsynchronousChannelProvider extends AsynchronousChannelProvider {
     @Override
     public AsynchronousChannelGroup openAsynchronousChannelGroup(int nThreads, ThreadFactory threadFactory) throws IOException {
         return new EnhanceAsynchronousChannelGroup(this, new ThreadPoolExecutor(nThreads, nThreads,

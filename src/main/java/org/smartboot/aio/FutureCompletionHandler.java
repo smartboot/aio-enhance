@@ -6,7 +6,7 @@ import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
-class FutureCompletionHandler<V, A> implements CompletionHandler<V, A>, Future<V>, Runnable {
+final class FutureCompletionHandler<V, A> implements CompletionHandler<V, A>, Future<V>, Runnable {
     private CompletionHandler<V, A> completionHandler;
     private A attach;
     private V result;

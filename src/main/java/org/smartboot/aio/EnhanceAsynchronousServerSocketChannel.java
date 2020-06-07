@@ -19,7 +19,7 @@ import java.util.concurrent.Future;
  * @author 三刀
  * @version V1.0 , 2020/5/25
  */
-class EnhanceAsynchronousServerSocketChannel extends AsynchronousServerSocketChannel {
+final class EnhanceAsynchronousServerSocketChannel extends AsynchronousServerSocketChannel {
     private final ServerSocketChannel serverSocketChannel;
     private final EnhanceAsynchronousChannelGroup enhanceAsynchronousChannelGroup;
     private final EnhanceAsynchronousChannelGroup.Worker acceptWorker;
