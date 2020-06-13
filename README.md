@@ -49,7 +49,11 @@ java -Djava.nio.channels.spi.AsynchronousChannelProvider=org.smartboot.aio.Enhan
 ```
 
 ## 四、比较验证
+待补充
 
-
+## 地摊云经济
+捐赠摊位已摆好，扫码请作者喝杯咖啡。
+![](https://smartboot.gitee.io/book/images/wx.jpg)
+![](https://smartboot.gitee.io/book/images/alipay.jpg)
 
 
