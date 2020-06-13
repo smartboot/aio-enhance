@@ -49,7 +49,10 @@ java -Djava.nio.channels.spi.AsynchronousChannelProvider=org.smartboot.aio.Enhan
 ```
 
 ## 四、比较验证
-待补充
+### 4核CPU
+![](images/4c_pipeline.png)
+![](images/4c_not_pipeline.png)
+### 28核CPU
 
 ## 地摊云经济
 捐赠摊位已摆好，扫码请作者喝杯咖啡。  
