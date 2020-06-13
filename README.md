@@ -1,6 +1,6 @@
-aio_enhance（音译：硬汉） 是一款无侵入式的 Java AIO 内核增强类库，解决原生 AIO 通信设计中存在的缺陷，提供更高效、更稳定的 AIO 通信服务。
+aio_enhance（音译：硬汉） 是一款无侵入式的 Java AIO 内核增强类库，解决原生 AIO 通信设计中存在的缺陷，提供更高效、更稳定的 通信能力。
 
-aio_enhance 采用了 NIO 技术对 Java AIO 接口进行重新实现，兼容完整的 AIO 接口定义。用户可自由选择 Java 原生的，或则由 aio_enhance 重定义的实现，整体架构如下图。
+aio_enhance 采用了 NIO 技术实现了一套全新的异步线程模型，兼容完整的 Java AIO 接口。用户可自由选择 Java 原生提供的，或则 aio_enhance 增强的 AIO 实现，整体架构如下图。
 
 ![](framework.png)
 
@@ -52,7 +52,4 @@ java -Djava.nio.channels.spi.AsynchronousChannelProvider=org.smartboot.aio.Enhan
 
 
 
-## 最后
-
-经常能看到一些关于 AIO 和 NIO 的比较，严格意义上两者是不同维度的，不具备可比性。AIO 可以视为 `AIO = NIO + JDK线程模型 `（正如`Netty = NIO + netty线程模型`），只不过这个线程模型不是最优解。而现在，`AIO = NIO + aio_enhance`这个公式会是一个更好的选择。
 
