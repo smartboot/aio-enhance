@@ -52,8 +52,8 @@ java -Djava.nio.channels.spi.AsynchronousChannelProvider=org.smartboot.aio.Enhan
 待补充
 
 ## 地摊云经济
-捐赠摊位已摆好，扫码请作者喝杯咖啡。
-<img src="https://smartboot.gitee.io/book/images/wx.jpg" height="50%" width="50%"/>
-<img src="https://smartboot.gitee.io/book/images/alipay.jpg" height="50%" width="50%"/>
+捐赠摊位已摆好，扫码请作者喝杯咖啡。  
+<img src="https://smartboot.gitee.io/book/images/wx.jpg" height="25%" width="25%"/>
+<img src="https://smartboot.gitee.io/book/images/alipay.jpg" height="25%" width="25%"/>
 
 
