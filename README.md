@@ -1,6 +1,6 @@
-aio_enhance（音译：硬汉） 是一款无侵入式的 Java AIO 内核增强类库（**注意：这不是一款通信框架**），解决原生 AIO 架构设计中存在的缺陷，提供更高效、更稳定的 通信能力。
+aio_enhance（音译：硬汉） 是一款无侵入式的 **Java AIO 内核增强类库**（***注意：这不是一款通信框架***），解决原生 AIO 架构设计中存在的缺陷，提供更高效、更稳定的 通信能力。
 
-aio_enhance 采用了 NIO 技术实现了一套全新的异步线程模型，兼容完整的 Java AIO 接口。用户可自由选择 Java 原生提供的，或则 aio_enhance 增强的 AIO 实现，整体架构如下图。
+aio_enhance 采用了 NIO 技术实现了一套全新的异步线程模型，兼容完整的 Java AIO 接口。用户可自由选择 Java 原生提供的，或者 aio_enhance 增强的 AIO 实现，架构如下图。
 
 ![](framework.png)
 
@@ -24,7 +24,7 @@ Java AIO 相较于 NIO 多了一层异步线程模型，极大降低了开发人
 
 如果您符合以下几个条件，aio_enhance 会是一个不错的选择。
 
-- 基于 Java AIO 实现的通信解决方案；
+- 基于 Java AIO 实现的通信框架，如：smart-socket；
 - 对高并发实时性有严苛要求；
 - 多核CPU环境（经作者验证，28核CPU下有显著性能提升，4核CPU无需引用aio_enhance，其他需要用户自行评估）；
 
@@ -78,8 +78,16 @@ java -Djava.nio.channels.spi.AsynchronousChannelProvider=org.smartboot.aio.Enhan
 #### 28核CPU
 
 [aio: smart-socket](https://tfb-status.techempower.com/unzip/results.2020-06-05-01-19-47-523.zip/results/20200531232959/smart-socket) 
-[aio-enhance: smart-socket](https://tfb-status.techempower.com/unzip/results.2020-06-12-13-47-41-338.zip/mnt/tfb/FrameworkBenchmarks/results/20200608003827/smart-socket)
-[nio: netty](https://tfb-status.techempower.com/unzip/results.2020-06-12-13-47-41-338.zip/mnt/tfb/FrameworkBenchmarks/results/20200608003827/netty)
+[aio-enhance: smart-socket](https://tfb-status.techempower.com/unzip/results.2020-06-14-07-26-26-766.zip/results/20200610023935/smart-socket)
+[nio: netty](https://tfb-status.techempower.com/unzip/results.2020-06-14-07-26-26-766.zip/results/20200610023935/netty)
+
+![](images/28c_pipeline.png)
+
+![](images/28c_not_pipeline.png)
+
+## 五、总结
+
+虽说在实验场景下 Java AIO 的表现不如 NIO，但是**异步非阻塞**的设计思想是值得被肯定的。况且在现实场景中，这点性能差别很容易就被业务逻辑所抹平，大家无需去计较孰优孰劣，适合自己的就是最好的选择。如今有了 aio-enhance 做备选，Java AIO本身设计上的缺陷也就没那么重要了。
 
 ## 地摊云经济
 捐赠摊位已摆好，扫码请作者喝杯咖啡。  
